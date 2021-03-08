@@ -1,0 +1,163 @@
+---
+title: "Lab 09: Forecasting"
+subtitle: "Econometrics II - YTU"
+author: 
+  name: "Prof. Dr. Hüseyin Taştan"
+  affiliation: "Yıldız Technical University"
+# date: "`r format(Sys.time(), '%d %B %Y')`"
+date: 2021 Spring
+output: 
+  html_document:
+    number_sections: true
+    theme: readable
+    highlight: haddock 
+    # code_folding: show
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+    keep_md: true
+---
+<style type="text/css"> 
+body{
+  font-size: 12pt;
+}
+code.r{
+  font-size: 12pt;
+}
+</style>
+
+```{r setup, include=FALSE}
+# knitr::opts_chunk$set(echo = TRUE, results = 'asis', fig.show = 'asis')
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+``` 
+
+# Basics of Forecasting  
+
+## Example: Forecasting Unemployment 
+
+
+Load packages, data set, and plot 3-month treasury bill rates: 
+```{r}
+library(dynlm) 
+library(stargazer)
+library(forecast)
+library(ggplot2)
+library(wooldridge)
+# define time series
+tsdat=ts(phillips, start=1948)
+
+# Estimate AR(1)
+res1 <- dynlm(unem ~ L(unem)      , data=tsdat, end=1996)
+# AR(1) + lagged inflation
+# practically this is the first equation of a VAR(1) system
+res2 <- dynlm(unem ~ L(unem) + L(inf), data=tsdat, end=1996)
+stargazer(res1, res2 ,type="text", keep.stat=c("n","adj.rsq","ser"))
+```
+
+Form the predictions and standard errors:  
+```{r}
+# AR(1) Predictions for 1997-2003 including 95% forecast intervals:
+p1 <- predict(res1, newdata=window(tsdat,start=1997), interval="prediction")
+p1
+```
+
+```{r}
+# VAR(1) Predictions for 1997-2003 including 95% forecast intervals:
+p2 <- predict(res2, newdata=window(tsdat,start=1997), interval="prediction")
+p2
+```
+
+Plot the forecast from the AR(1) model
+```{r message=FALSE, warning=FALSE}
+unem <- ts(phillips$unem, start=1948)
+AR1fit <- ts(p1, start=1997)
+autoplot(unem) + autolayer(AR1fit) +geom_point(aes(y=unem)) + 
+  geom_vline(xintercept = 1996, linetype=2) +
+  ggtitle("Unemployment Forecasts for 1997-2003 using AR(1) Model")
+```
+
+Plot the forecast from the VAR(1) model
+```{r} 
+VAR1fit <- ts(p2, start=1997)
+autoplot(unem) + 
+  autolayer(VAR1fit) + 
+  geom_vline(xintercept = 1996, linetype=2) +
+  ggtitle("Unemployment Forecasts for 1997-2003 using VAR(1) Model")
+```
+
+Compute the out-of-sample forecasts and forecast errors:  
+```{r}
+# Actual unemployment and forecasts:
+y  <- window(tsdat,start=1997)[,"unem"]
+f1 <- predict( res1, newdata=window(tsdat,start=1997) )
+f2 <- predict( res2, newdata=window(tsdat,start=1997) )
+
+# Plot unemployment and forecasts:
+matplot(time(y), cbind(y,f1,f2), type="l",  col="black",lwd=2,lty=1:3)
+legend("topleft",c("Unempl.","Forecast 1","Forecast 2"),lwd=2,lty=1:3)
+```
+
+
+```{r}
+# Forecast errors:
+e1<- y - f1
+e2<- y - f2
+```
+
+
+```{r}
+# RMSE:
+sqrt(mean(e1^2))
+sqrt(mean(e2^2))
+```
+
+
+```{r}
+# MAE:
+mean(abs(e1))
+mean(abs(e2))
+```
+
+The second model, VAR(1), a has smaller RMSE and MAE. 
+
+# Fitting a VAR model
+
+We can use `vars` package to estimate a VAR. 
+For example, using the `phillips` data set: 
+```{r}
+library(fpp2)
+library(vars)
+tsdat <- ts(phillips, start=1948, end=1996)
+var1 <- VAR(tsdat[,c("unem","inf")], p=1, type="const")
+summary(var1)
+```
+
+Compute and plot forecasts: 
+
+```{r}
+forecast(var1) %>% 
+  autoplot() +
+  xlab("year")
+```
+
+
+The Granger-causality test from inflation to unemployment
+```{r}
+causality(var1, cause = "inf")
+```
+
+The F statistic is 19.87 with a very small p-value. Thus, we reject the null hypothesis. **Inflation Granger-causes unemployment**. This implies that inflation is useful in forecasting one-period-ahead unemployment rate. 
+
+The Granger-causality test from unemployment to inflation: 
+```{r}
+causality(var1, cause = "unem")
+```
+
+The F test statistic is 0.06 with pvalue = 0.80, thus we don't reject the null hypothesis. **Unemployment does not Granger-cause inflation**. 
+
+Overall, we can say that while inflation is useful in predicting the future unemployment rate the reverse is not true. Unemployment is not useful in predicting future inflation. 
+
+<br>
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
+
+ 

@@ -1,0 +1,331 @@
+---
+title: "Lab 08: Cointegration and Error Correction Model (ECM)"
+subtitle: "Econometrics II - YTU"
+author: 
+  name: "Prof. Dr. Hüseyin Taştan"
+  affiliation: "Yıldız Technical University"
+# date: "`r format(Sys.time(), '%d %B %Y')`"
+date: 2021 Spring
+output: 
+  html_document:
+    number_sections: true
+    theme: readable
+    highlight: haddock 
+    # code_folding: show
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+    keep_md: true
+---
+<style type="text/css"> 
+body{
+  font-size: 12pt;
+}
+code.r{
+  font-size: 12pt;
+}
+</style>
+
+```{r setup, include=FALSE}
+# knitr::opts_chunk$set(echo = TRUE, results = 'asis', fig.show = 'asis')
+knitr::opts_chunk$set(echo = TRUE, cache=TRUE, autodep=TRUE, cache.comments=FALSE, message=FALSE, warning=FALSE)
+``` 
+
+
+# An Illustration of Spurious Regression 
+
+
+Task: simulate two independent random walks and run a simple regression: 
+```{r}
+library(forecast)
+library(ggplot2)
+
+# simulate data 
+set.seed(12)
+n <- 50
+e <- rnorm(n)
+a <- rnorm(n)
+# generate independent random walks
+x <- ts(cumsum(a))
+y <- ts(cumsum(e))
+
+
+autoplot(cbind(x,y)) +
+  theme_minimal() + xlab("") +
+  ylab("x,y") + 
+  ggtitle("Two independent random walks")
+```
+
+Using this data set run a simple regression of y on x: 
+```{r}
+# Regression of y on x
+fit1 <- lm(y ~ x)
+summary(fit1)
+```
+
+Although they are independent by construction, the OLS results above suggest that they are highly correlated with a significant t-statistic on the coefficient of x variable. 
+
+Let's repeat this for a large number of times and obtain the sampling distributions of t ratio, its p-value, and R squared. Here is how we can extract these quantities from the R regression output: 
+```{r}
+fit1sum <- summary(fit1)
+fit1sum$coef
+```
+```{r}
+# t-ratio on x
+fit1sum$coef[2,3]
+```
+```{r}
+# p-value of t-ratio on x
+fit1sum$coef[2,4]
+```
+```{r}
+# R-squared
+fit1sum$r.squared
+```
+
+
+```{r}
+set.seed(12)
+nreps  <- 10000          # number of replications
+tratio <- rep(NA, nreps) # create vector of NAs to be filled
+pvals  <- rep(NA, nreps)
+Rsq    <- rep(NA, nreps)
+for (i in 1:10000) { 
+  n <- 50
+  a <- rnorm(n)
+  e <- rnorm(n) 
+  x <- cumsum(a)
+  y <- cumsum(e)
+  regsum    <- summary(lm(y ~ x)) # regression summary
+  tratio[i] <- regsum$coef[2,3]   # extract the t-ratio 
+  pvals[i]  <- regsum$coef[2,4]   # extract the p-value
+  Rsq[i]    <- regsum$r.squared   # extract the R-sq
+}
+```
+
+Because x and y are independent by construction, we expect to reject $H_0:\beta_1 = 0$ 5% of the time for a t-test with $\alpha=0.05$. 
+```{r}
+# How often is p<0.05?
+table(pvals<=0.05)/nreps
+```
+
+
+```{r}
+# draw the histogram of t-ratio 
+tdata <- data.frame(c(rep("t-ratio",nreps), rep("tdist(dof=48)",nreps)), 
+                    c(tratio,rt(nreps,48)))
+colnames(tdata) <- c("type","tratio")
+```
+
+```{r}
+ggplot(tdata,aes(tratio, fill=type,color=type)) +
+  geom_density(alpha=0.1, adjust=1.5) +   theme_minimal() + xlab("") +
+  theme(legend.position = c(0.85, 0.82),
+        legend.direction = "vertical",
+        legend.title = element_blank(),
+        legend.text = element_text(size=14),
+        axis.text.x = element_text(size = 14)) 
+```
+
+Now we see what the problem is. When $y$ and $x$ follow random walks, the t-statistic on the coefficient of $x$ does not follow the usual t distribution, even if random walks are statistically independent. The sampling distribution of the t-ratio from the spurious regression has extremely longer tails than the standard t distribution with 48 degrees of freedom. Hence, if we use the usual critical values from the t density to make the decision, we will reject the null more frequently. 
+
+The quantiles of the t-ratio under spurious regression is 
+```{r}
+quantile(tratio,c(0.01,0.05,0.1,0.9,0.95,0.99))
+```
+
+compare this to the standard t-distribution: 
+```{r}
+quantile(rt(nreps,48),c(0.01,0.05,0.1,0.9,0.95,0.99))
+```
+
+What about R-squared? How does it behave under the spurious regression?
+```{r}
+Rsq <- data.frame(Rsq)
+ggplot(Rsq,aes(Rsq)) +
+  geom_density(alpha=0.1, adjust=0.5) + xlab("")  
+```
+
+It looks like R-squared can be arbitrarily large even if we have independent random variables. It is not reliable as a measure of goodness-of-fit. 
+
+# Replicating the in-class examples
+
+## Example 18.5: Cointegration between Fertility and Personal Exemption
+
+Are fertility rate (gfr) and tax exemptions (pe) cointegrated? 
+We also add a time trend in the model. 
+
+```{r}
+library(wooldridge)
+library(ggplot2)
+ggplot(fertil3, aes(year, gfr, col="GFR")) + 
+  geom_line() +
+  geom_line(aes(year, pe, col="PE")) +
+  scale_colour_manual(" ", values=c("GFR"="black","PE"="red")) +
+  theme(axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
+```
+
+Steps in cointegration analysis:
+
+1. Check if variables are I(1) using the ADF test 
+
+2. If they are both I(1) run the cointegration regression and conduct the 
+Engle-Granger test. 
+
+3. If the test suggests a cointegration relationship then the model involving 
+levels can be interpreted as a long run equilibrium relationship. 
+
+4. If they are not cointegrated then we have a spurious regression. 
+In that case we can estimate a dynamic (short run) model in first 
+differences of variables. 
+
+Let's follow these steps: 
+
+**1. Apply ADF test to each variable:** 
+```{r}
+library(dynlm)
+library(urca)
+gfr <- ts(fertil3$gfr, start = 1913, frequency = 1)
+pe <- ts(fertil3$pe, start = 1913, frequency = 1)
+summary( ur.df(gfr , type = c("trend"), selectlags="AIC"))
+```
+
+The ADF test statistic for the variable `gfr` is $-1.47$ where we included a time trend and one lag of the dependent variable (selected by AIC). Clearly this suggests that `gfr` is nonstationary. Is the first difference stationary?
+
+```{r}
+dgfr <- diff(gfr)
+summary( ur.df(dgfr , type = c("drift"), selectlags="AIC"))
+```
+
+The ADF test statistic for $\Delta gfr$ is $-5.91$. Thus, we reject the null of nonstationarity. The first difference is stationary. Overall, this implies that `gfr` is I(1), i.e., it becomes stationary when we take the first difference. 
+
+What about `pe`?
+```{r}
+summary( ur.df(pe , type = c("trend"), selectlags="AIC"))
+```
+
+The ADF test statistic for `pe` is $-1.471$. Because it's larger than the critical value (even at 10%) we fail to reject the null. Its first difference is stationary because:
+```{r}
+dpe <- diff(pe)
+summary( ur.df(dpe , type = c("drift"), selectlags="AIC"))
+```
+
+Therefore `pe` is also I(1). 
+
+Because we have two I(1) variables the regression of `gfr` on `pe` may result in spurious regression. To check that we need to run the cointegration test. 
+
+**2. Apply the Engle-Granger Cointegration Test:** 
+
+```{r}
+# run the test regression 
+fert1 <- dynlm(gfr ~ trend(gfr) + pe)
+summary(fert1)
+uhat <- residuals(fert1)
+autoplot(uhat)
+```
+
+The Engle-Granger test is simply the ADF test statistic on the residuals from the regression in levels. 
+
+```{r}
+# Compute Engle-Granger test
+summary( ur.df(uhat , type = c("drift"), selectlags="AIC"))
+```
+
+Denoting the residuals by $\hat{u}_t$, regression results can be written in equation form as follows 
+$$
+\widehat{\Delta \hat{u}}_t = -0.18 -0.12 \hat{u}_{t-1} + 0.24 \Delta \hat{u}_{t-1}
+$$
+Thus, the Engle-Granger cointegration test statistic is 
+$$
+EG = \frac{-0.12}{0.05}=-2.43
+$$
+From Table 18.5 we see that the 10% critical value is $-3.50$. Because EG is larger than the critical value we **fail to reject** the null hypothesis. **There is no cointegration**. 
+
+The fact that there is no long run relationship between gfr and pe suggests that the levels regression suffers from the spurious regression problem. Thus, we may consider running an FDL model in first differences. (we did this in ch. 11). 
+
+
+
+## Example: Are 3-month and 6-month interest rates cointegrated?
+
+
+```{r}
+library(wooldridge)
+r6 <- ts(intqrt$r6, start = 1950, frequency = 4)
+r3 <- ts(intqrt$r3, start = 1950, frequency = 4)
+spr <- r6-r3
+autoplot(cbind(r6, r3))  
+```
+
+Static regression: 
+```{r}
+intreg1 <- dynlm(r6 ~ r3)
+summary(intreg1)
+```
+
+
+```{r}
+# Residuals from the static regression
+uhat <- residuals(intreg1)
+autoplot(uhat)
+```
+
+
+```{r}
+summary( ur.df(uhat , type = c("drift"), selectlags="AIC"))
+```
+
+# Application: Tomato Prices in Antalya and Istanbul
+
+```{r}
+load("../Data/tomatoprices.RData")
+antalya <- ts(tomatoprices$antalya, start = 2011, frequency = 12)
+istanbul <- ts(tomatoprices$istanbul, start = 2011, frequency = 12)
+# plot of the series
+library(forecast)
+library(ggplot2)
+autoplot(cbind(antalya, istanbul)) +
+  theme_minimal() + xlab("") + ylab("Tomato prices")  
+  # theme(axis.text.x = element_text(size = 14), 
+  #      axis.text.y = element_text(size = 14))
+```
+ 
+
+Assume that both prices are I(1). Run the regression of log(istanbul) on 
+log(antalya) together with a time trend.
+
+```{r}
+listanbul <- log(istanbul)
+lantalya <- log(antalya)
+
+res1 <- dynlm(listanbul ~ trend(listanbul) + lantalya)
+summary(res1)
+uhat <- residuals(res1)
+autoplot(uhat) + xlab("") + ylab("Residuals (uhat)")+theme_minimal()
+```
+
+
+```{r}
+summary( ur.df(uhat , type = c("drift"), selectlags="AIC"))
+```
+The EG test statistic is $-5.75$ which needs to be compared to the appropriate critical values (see the classnotes). Do not use the usual ADF critical values. 
+
+Result suggests that Antalya and Istanbul prices are cointegrated. The short-run relationship may be modelled using an error correction model (ECM) such as: 
+```{r}
+# an ECM 
+ecm1 <- dynlm(d(listanbul) ~ L(uhat) + L(d(listanbul)) +  L(d(lantalya)))
+summary(ecm1)
+```
+or excluding the lagged differenced prices: 
+```{r}
+# an ECM 
+ecm2 <- dynlm(d(listanbul) ~ L(uhat))
+summary(ecm2)
+```
+
+
+
+<br>
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
+
+ 

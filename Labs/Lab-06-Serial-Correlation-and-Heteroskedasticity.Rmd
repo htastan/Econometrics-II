@@ -1,0 +1,359 @@
+---
+title: "Lab 06: Serial Correlation and Heteroskedasticity in Time Series Regressions"
+subtitle: "Econometrics II - YTU"
+author: 
+  name: "Prof. Dr. Hüseyin Taştan"
+  affiliation: "Yıldız Technical University"
+# date: "`r format(Sys.time(), '%d %B %Y')`"
+date: 2021 Spring
+output: 
+  html_document:
+    number_sections: true
+    theme: readable
+    highlight: haddock 
+    # code_folding: show
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+    keep_md: true
+---
+<style type="text/css"> 
+body{
+  font-size: 12pt;
+}
+code.r{
+  font-size: 12pt;
+}
+</style>
+
+```{r setup, include=FALSE}
+# knitr::opts_chunk$set(echo = TRUE, results = 'asis', fig.show = 'asis')
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+``` 
+
+# Replicating Examples in ch.12 of Wooldridge's Text (6th ed) 
+
+## Example 12.1: AR(1) t-test for the Phillips Curve Regressions
+
+### Static Phillips Curve
+
+```{r}
+library(wooldridge)
+library(dynlm)
+library(lmtest)
+data(phillips, package='wooldridge')
+
+# Define Yearly time series beginning in 1948
+tsdata <- ts(phillips, start=1948)
+
+# Estimation of static Phillips curve:
+reg.s <- dynlm( inf ~ unem, data=tsdata, end=1996)
+summary(reg.s)
+```
+
+```{r}
+# save the residuals from the static model
+residual.s <- ts(resid(reg.s), start=1948, end=1996)
+# graph
+library(forecast)
+library(ggplot2)
+forecast::autoplot(residual.s) + geom_point(aes(y=residual.s)) +
+  geom_hline(yintercept = 0,linetype="dashed", color = "red") +
+  theme_minimal()
+```
+
+```{r, message=FALSE, warning=FALSE}
+# Sample Autocorrelation Function of residuals
+forecast::ggAcf(residual.s) + theme_minimal()
+```
+
+```{r, echo=TRUE, results="hold"}
+# AR(1) test regression
+ttestreg <- dynlm(residual.s ~ L(residual.s)) 
+coeftest(ttestreg)
+```
+
+### Expectations Augmented Phillips Curve
+
+```{r, message=FALSE, warning=FALSE}
+# Same with expectations-augmented Phillips curve:
+reg.ea <- dynlm( d(inf) ~ unem, data=tsdata, end=1996)
+residual.ea <- resid(reg.ea)
+coeftest( dynlm(residual.ea ~ L(residual.ea)) )
+```
+
+Durbin-Watson test: 
+```{r, echo=TRUE, results="hold"}
+# DW test for the static Phillips curve
+library(lmtest)
+dwtest(reg.s)
+```
+
+```{r, echo=TRUE, results="hold"}
+# DW test for the expectations-augmented Phillips curve
+library(lmtest)
+dwtest(reg.ea)
+```
+
+## Example 12.2: AR(1) t-test with non-strictly exogenous regressors 
+
+This example use Puerto Rican minimum wage regression model which 
+we saw in chapter 10. 
+
+
+```{r, message=FALSE, warning=FALSE}
+tsprminwage <- ts(prminwge, start=1950)
+minwage <- dynlm(lprepop ~ lmincov + lusgnp + lprgnp + 
+                   trend(tsprminwage, scale=FALSE), data = tsprminwage)
+summary(minwage)
+```
+
+```{r, message=FALSE, warning=FALSE}
+# obtain residuals 
+library(dynlm)
+library(lmtest) 
+resid <- residuals(minwage)
+ARtest <- dynlm(resid ~ L(resid) + lmincov + lusgnp + lprgnp + trend(tsprminwage), data=tsprminwage)
+coeftest(ARtest)
+```
+
+From the output we see that the coefficent estimate on the lagged residual, `L(resid)`, is 
+$\hat{\rho}=0.48$ with $t=2.89$ which has a small p-value (0.007). Thus, we reject the null hypothesis of no serial correlation. 
+
+
+## Example 12.3: Testing for AR(3) serial correlation
+
+
+
+```{r, message=FALSE, warning=FALSE}
+library(dynlm)
+library(car)
+library(lmtest)
+data(barium, package='wooldridge')
+tsdata <- ts(barium, start=c(1978,2), frequency=12)
+# regression
+reg <- dynlm(log(chnimp)~log(chempi)+log(gas)+log(rtwex)+
+                                  befile6+affile6+afdec6, data=tsdata )
+
+# Test regression
+residual <- resid(reg)
+resreg <- dynlm(residual ~ L(residual)+L(residual,2)+L(residual,3)+
+                           log(chempi)+log(gas)+log(rtwex)+befile6+
+                                          affile6+afdec6, data=tsdata )
+linearHypothesis(resreg, 
+                 c("L(residual)","L(residual, 2)","L(residual, 3)"))
+```
+
+This can be automatically computed using `bgtest()` function in the `lmtest` package.
+
+```{r}
+# Automatic test:
+bgtest(reg, order=3, type="F")
+```
+
+The LM version of the test is called the Breusch-Godfrey serial correlation test which can be computed using 
+
+```{r}
+# LM version (Breusch-Godfrey autocorrelation test)
+bgtest(reg, order=3, type="Chisq")
+```
+
+
+## Example 12.4: FGLS Estimation (barium data) 
+
+Cochrane-Orcutt estimation: 
+
+```{r, message=FALSE, warning=FALSE}
+library(dynlm)
+library(car)
+library(orcutt)
+data(barium, package='wooldridge')
+tsdata <- ts(barium, start=c(1978,2), frequency=12)
+
+# OLS estimation
+olsres <- dynlm(log(chnimp) ~ log(chempi) + log(gas) + log(rtwex) +
+      befile6 + affile6 + afdec6, data=tsdata)
+
+# Cochrane-Orcutt estimation
+cochrane.orcutt(olsres)
+```
+
+Prais-Winsten estimation: 
+
+```{r, message=FALSE, warning=FALSE}
+library(dynlm)
+library(car)
+library(prais)
+data(barium, package='wooldridge')
+tsdata <- ts(barium, start=c(1978,2), frequency=12)
+
+# OLS estimation
+olsres <- dynlm(log(chnimp) ~ log(chempi) + log(gas) + log(rtwex) +
+      befile6 + affile6 + afdec6, data=tsdata)
+
+# Prais-Winsten estimation
+prais_winsten(log(chnimp) ~ log(chempi) + log(gas) + log(rtwex) +
+      befile6 + affile6 + afdec6, data=tsdata)
+```
+
+The Prais-Winsten estimation results can be compared to those in Table 12.1 on page 384 of the text. Also, the Cohcrane-Orcutt and Prais-Winsten FGLS results are practically the same. 
+
+
+## Example 12.5: FGLS Estimation (Phillips Curve) 
+
+```{r, message=FALSE, warning=FALSE}
+library(wooldridge)
+library(dynlm)
+library(stargazer)
+library(prais)
+data(phillips, package='wooldridge')
+
+# Define Yearly time series beginning in 1948
+tsdata <- ts(phillips, start=1948, end=1996)
+
+# Estimation of static Phillips curve:
+reg.s <- dynlm( inf ~ unem, data=tsdata) 
+summary(reg.s)
+```
+
+```{r, echo=TRUE, results="hold"}
+# Prais-Winsten
+reg.pw <- prais_winsten(inf ~ unem, data=tsdata)
+summary(reg.pw)
+```
+
+```{r, echo=TRUE, results="hold"}
+# Cochrane-Orcutt
+cochrane.orcutt(reg.s)
+```
+
+## Example 12.6: Differencing (interest rate equation) 
+
+This is based on Example 10.2: Effects of Inflation and Deficits on Interest Rates. 
+
+```{r, message=FALSE, warning=FALSE}
+library(wooldridge)
+library(dynlm)
+# create a ts object 
+tsintdef <- ts(intdef, start=1948, frequency = 1) 
+```
+
+```{r, echo=TRUE, results="hold"}
+# static model:
+intmodel <- dynlm(d(i3) ~ d(inf) + d(def), data = tsintdef)
+summary(intmodel)
+```
+
+## Example 12.7: The Puerto Rican Minimum Wage
+
+```{r, message=FALSE, warning=FALSE}
+library(dynlm) 
+library(lmtest)
+library(sandwich)
+data(prminwge, package='wooldridge')
+
+tsdata <- ts(prminwge, start=1950)
+
+# OLS regression
+reg<-dynlm(log(prepop)~log(mincov)+log(prgnp)+log(usgnp)+trend(tsdata), 
+                                                          data=tsdata )
+# results with usual SE
+coeftest(reg)
+# results with HAC SE
+coeftest(reg, vcovHAC)
+```
+
+## Example 12.8: Heteroskedasticity in time series regressions (EMH)
+
+```{r, message=FALSE, warning=FALSE}
+library(dynlm)
+library(lmtest)
+data(nyse, package='wooldridge')
+
+tsnyse <- ts(nyse)
+
+# Linear regression of model:
+reg <- dynlm(return ~ L(return), data=tsnyse) 
+summary(reg)
+residual <- residuals(reg)
+```
+
+```{r}
+library(ggplot2)
+autoplot(residual)+ 
+  geom_hline(yintercept = 0,linetype="dashed", color = "red") + 
+  theme_minimal()
+# squared residuals 
+autoplot(residual^2)+theme_minimal()
+
+# histogram
+ggplot(residual,aes(x=residual)) + 
+  geom_histogram(color = "darkblue",fill = "lightblue", bins = 20) + 
+  theme_minimal()
+```
+
+```{r}
+residualsq <- residual^2
+return <- ts(nyse$return)
+returnlag <- stats::lag(return,1)
+plot(returnlag, residualsq)
+```
+
+Now, regress squared residuals on explanatory variables (here we have a single X
+variable, lagged return)
+
+```{r}
+hettest <- dynlm(residualsq ~ L(return), data=tsnyse)
+summary(hettest)
+```
+
+The t statistic on $return_{t-1}$ is $t=-1.104/0.201=-5.482$ with a very small p
+value. Thus, we reject the null hypothesis that there is no heteroskedasticity. The result can be written in equation form as 
+
+$$\hat{u}_{t}^{2}=4.66-1.104 \text { return }_{t-1}+\text { residual}_{t}$$
+
+
+In fact, squared residuals, a measure of market volatility, is inversely related to the lagged return. This suggests that this week's volatility is predicted to be lower if the previous week's return is high (and vice versa). Overall, the results suggest that while returns may not be predicted using past information (thus EMH holds), the volatility (or variance) can be predicted. 
+
+
+## Example 12.9: ARCH model 
+
+ARCH (Autoregressive Conditional Heteroskedasticity) model provides a dynamic form of heteroskedasticity especially important for financial data. It can be written as 
+
+$$u_{t}^{2}=\alpha_{0}+\alpha_{1} u_{t-1}^{2}+v_{t}$$
+which is basically an AR(1) model in squared residuals. This implies that we must impose the stability condition, $\alpha_1<1$. Also, error terms themselves, $u_t$, must be serially uncorrelated.  
+
+```{r, message=FALSE, warning=FALSE}
+library(dynlm)
+library(lmtest)
+data(nyse, package='wooldridge')
+
+tsnyse <- ts(nyse)
+
+# Linear regression of model:
+reg <- dynlm(return ~ L(return), data=tsnyse) 
+
+# squared residual
+residual.sq <- resid(reg)^2
+
+# Model for squared residual:
+ARCHreg <- dynlm(residual.sq ~ L(residual.sq)) 
+coeftest(ARCHreg)
+```
+
+$$\hat{u}_{t}^{2}=2.95+.337 \hat{u}_{t-1}^{2}+\text {residual}_{t}$$
+
+Check if residuals are autocorrelated: 
+
+```{r}
+residual <- resid(reg)
+summary(dynlm(residual ~ L(residual)))
+```
+
+Is lagged residual statistically significant?
+
+<br>
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
+
+
+ 

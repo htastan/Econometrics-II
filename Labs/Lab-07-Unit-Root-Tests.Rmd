@@ -1,0 +1,251 @@
+---
+title: "Lab 07: Unit Root Tests"
+subtitle: "Econometrics II - YTU"
+author: 
+  name: "Prof. Dr. Hüseyin Taştan"
+  affiliation: "Yıldız Technical University"
+# date: "`r format(Sys.time(), '%d %B %Y')`"
+date: 2021 Spring
+output: 
+  html_document:
+    number_sections: true
+    theme: readable
+    highlight: haddock 
+    # code_folding: show
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+    keep_md: true
+---
+<style type="text/css"> 
+body{
+  font-size: 12pt;
+}
+code.r{
+  font-size: 12pt;
+}
+</style>
+
+```{r setup, include=FALSE}
+# knitr::opts_chunk$set(echo = TRUE, results = 'asis', fig.show = 'asis')
+knitr::opts_chunk$set(echo = TRUE, cache=TRUE, autodep=TRUE, cache.comments=FALSE, message=FALSE, warning=FALSE)
+``` 
+
+
+# Replicating in-class examples
+
+## Example 18.2: Unit Root Test for Three-Month T-Bill Rates
+
+
+Load packages, data set, and plot 3-month treasury bill rates: 
+```{r}
+library(wooldridge)
+library(dynlm)
+library(lmtest)
+
+tsdata <- ts(intqrt, start = 1960, frequency = 4)
+r3 <- ts(intqrt$r3, start = 1960, frequency = 4)
+
+library(forecast)
+library(ggplot2)
+autoplot(r3) + 
+  theme_minimal() + xlab("")
+```
+
+Next we run the DF test regression which is just the regression of differenced 
+variable on the lagged variable (we include a constant term but not trend)
+
+```{r}
+# run DF test regression  
+reg1 <- dynlm(d(r3) ~ L(r3), data=tsdata)
+summary(reg1)
+bhat <- coef(reg1)[2]
+se.bhat <- sqrt(diag(vcov(reg1)))[2]
+# another way to extract se 
+# summary(reg1)$coef[2,2]
+```
+
+DF test statistic is simply the t-ratio: 
+```{r}
+DF <- bhat/se.bhat
+DF
+# compare to critical values for the case without trend
+# cv = -2.86 at 5%
+```
+Because DF is larger than the critical value at 5% level, we **fail to reject** the null hypothesis. Thus, 3-months treasury bill rate is **nonstationary**.
+
+Is the first difference stationary? The DF statistic suggested that T-bill rate may be difference-stationary, i.e., its first difference may be stationary, I(1). To check this, we take the first difference and then run the DF test again: 
+
+```{r}
+# take diff and then plot
+dr3 <- diff(r3)
+autoplot(dr3) + 
+  theme_minimal() +
+  xlab("") + 
+  ylab("First difference of r3")
+```
+
+The plot of differenced series suggest that it fluctuates around a constant. It may in fact be stationary. Here is the DF test regression: 
+```{r}
+# DF test regression 
+reg2 <- dynlm(d(dr3) ~ L(dr3))
+summary(reg2)
+bhat2 <- coef(reg2)[2]
+se.bhat2 <- sqrt(diag(vcov(reg2)))[2] 
+```
+
+DF statistic: 
+```{r, echo=TRUE, results="hold"}
+DF2 <- bhat2/se.bhat2
+DF2
+```
+
+DF test statistic is $-12.3$ which is very far from the critical value on the left tail (smaller than the critical value at 1% level). Thus, we **reject** the null hypothesis. The first difference of T-bill rate is **stationary**. This implies that the level of the **T-bill series is I(1)**. 
+
+Using the `urca` package: 
+```{r}
+# levels of T-bill rate
+library(urca)
+summary( ur.df(r3 , type = c("drift"), lags = 0) )
+```
+
+```{r, echo=TRUE, results="hold"}
+# first difference of T-bill rate
+summary( ur.df(dr3 , type = c("drift"), lags = 0) )
+```
+
+### Adding a time trend 
+
+```{r}
+##### constant + trend 
+library(dynlm)
+reg3 <- dynlm(d(r3) ~ L(r3) + trend(tsdata), data=tsdata)
+summary(reg3)
+bhat3 <- coef(reg3)[2]
+se.bhat3 <- sqrt(diag(vcov(reg3)))[2] 
+```
+
+
+
+```{r}
+DF3 <- bhat3/se.bhat3
+DF3
+# compare to critical values for the case without trend
+# cv = -3.41 at 5%
+```
+
+
+Using the `urca` package: 
+```{r}
+summary( ur.df(r3 , type = c("trend"), lags = 0) )
+```
+
+## Example 18.3 Unit root test for annual inflation 
+
+ADF test: augmented version of the DF test which corrects potential serial correlation in the error term: 
+
+```{r}
+tsdata <- ts(phillips, start=1948)
+resADF <- dynlm(d(inf) ~ L(inf)+L(d(inf),1), data=tsdata, end=1996)
+bhat <- coef(resADF)[2]
+se.bhat <- sqrt(diag(vcov(resADF)))[2] 
+ADF <- bhat/se.bhat
+ADF
+```
+ ADF = $-3.02$ which is smaller than $cv_{0.05}=-2.86$. Thus, we reject the unit root null hypothesis. 
+
+```{r}
+# without the lagged term 
+resADF2 <- dynlm(d(inf) ~ L(inf), data=tsdata, end=1996)
+# with two lags
+resADF3 <- dynlm(d(inf) ~ L(inf)+L(d(inf),1)+L(d(inf),2), data=tsdata, end=1996)
+library(stargazer)
+stargazer(resADF2, resADF, resADF3 ,type="text", keep.stat=c("n","adj.rsq","ser"))
+```
+
+**Exercise**: Compute ADF test statistic for each model and make a decision on the null hypothesis. 
+
+
+```{r}
+# use urca 
+inf <- ts(phillips$inf, start=1948, end=1996)
+summary( ur.df(inf , type = c("drift"), lags = 1) )
+summary( ur.df(inf , type = c("drift"), lags = 2) )
+
+urADF1 <-  ur.df(inf , type = c("drift"), selectlags = "AIC")
+summary(urADF1)
+
+```
+
+## Exercise 18.4: Unit Root in the Log of U.S. Real Gross Domestic Product
+
+```{r}
+library(dynlm)
+data(inven, package='wooldridge')
+
+# variable to test: y=log(gdp)
+inven$y <- log(inven$gdp)
+inven.ts<- ts(inven)
+
+# summary output of ADF regression:
+summary(dynlm( d(y) ~ L(y) + L(d(y)) + trend(inven.ts), data=inven.ts))
+```
+
+**Exercise**: Compute the ADF test statistic. What's your decision? 
+Is US GDP difference-stationary or trend-stationary? 
+
+**Exercise**: Take the first difference of log(GDP) and conduct the ADF test 
+again. Is the first difference (which is just the growth rate) stationary?
+Can we now say Real GDP is I(1)?
+
+
+Using the `urca` package
+```{r}
+# automated ADF test using urca:
+library(urca)
+summary( ur.df(log(inven$gdp) , type = c("trend"), lags = 1) )
+```
+
+
+
+# Is Turkish Real GDP Stationary? 
+
+Details are in your class notes. Plot the logarithmic real GDP series: 
+```{r}
+# ADF example: Turkish Real GDP 
+load("../Data/RGDPTR.RData")
+lrgdp <- log(rgdp)
+autoplot(lrgdp) + xlab("") + ylab("Turkish Real GDP") +
+  theme_minimal()
+```
+
+
+Run the ADF test and select the lag order using Akaike's Information Criterion (AIC):  
+```{r}
+urADFtr <-  ur.df(lrgdp , type = c("trend"), lags=4, selectlags = "AIC")
+summary(urADFtr)
+```
+
+
+Take the first difference and plot: 
+```{r}
+dlrgdp <- diff(lrgdp)
+autoplot(dlrgdp) + xlab("") + ylab("Growth Rate of Turkish Real GDP") +
+  theme_minimal()
+```
+
+Run the ADF test on the first difference: 
+```{r}
+urADFtr2 <-  ur.df(dlrgdp , type = c("drift"), selectlags = "AIC")
+summary(urADFtr2)
+```
+
+The ADF test statistic is smaller than the critical value at 1% level. Therefore, RGDP is an I(1) process. 
+
+**Discussion** Is Turkish Real GDP difference-stationary or trend-stationary? Recall that if the series is trend-stationary then it is weakly dependent around a trend line. In this case adding a trend term in the regression would suffice. On the other hand, if it is nonstationary it's highly persistent and shocks have permanent effects. In that case, removing the trend line does not make the series stationary. The proper way to make the series stationary is to take the appropriate number of differences - usually just the first difference.  
+
+<br>
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
+
+
+ 

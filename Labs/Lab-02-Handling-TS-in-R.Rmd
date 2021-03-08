@@ -1,0 +1,322 @@
+---
+title: "Lab 02: Time Series Data in R"
+subtitle: "Econometrics II - YTU"
+author: 
+  name: "Prof. Dr. Hüseyin Taştan"
+  affiliation: "Yıldız Technical University"
+# date: "`r format(Sys.time(), '%d %B %Y')`"
+date: 2021 Spring
+output: 
+  html_document:
+    number_sections: true
+    theme: readable
+    highlight: haddock 
+    # code_folding: show
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+    keep_md: true
+---
+<style type="text/css"> 
+body{
+  font-size: 12pt;
+}
+code.r{
+  font-size: 12pt;
+}
+</style>
+
+```{r setup, include=FALSE}
+# knitr::opts_chunk$set(echo = TRUE, results = 'asis', fig.show = 'asis')
+knitr::opts_chunk$set(echo = TRUE)
+``` 
+
+# Handling Time Series Data in R 
+
+A time series is a set of temporally ordered (indexed) measurements or observations. Most time series are recorded at regular intervals of time (hourly, half-daily, daily, weekly, monthly, quarterly, yearly, etc.). But we should note that irregular times series and missing values are also possible. 
+
+Time series data sets are typically used in macroeconomic and financial applications. Forecasting future values based on the past information is also a standard problem encountered in practice. For example, the central bank routinely forecasts inflation rate in the upcoming months. 
+
+In order to develop and estimate empirical econometric models  using time series data, we need to handle the data in a specialized way. A software package, `R` for example, does not know the type of data. Users need to tell `R` that observations are indexed by time (usually discretely) and the operations on values must respect the temporal order. 
+
+There are several ways of representing time series data in `R`. Some of the most widely used object classes are summarized below. More information can be found at [CRAN Task View: Time Series Analysis](https://cran.r-project.org/web/views/TimeSeries.html)
+
+## `ts` object
+
+`ts` is one of the fundamental classes in base `R`. `ts` can represent regularly spaced time series data (yearly, monthly, quarterly, etc.) using numerical time stamps. As an example consider
+```{r}
+set.seed(1)
+x <- rnorm(10)
+x
+class(x)
+```
+The class of random variable `x` is numeric. Let us create a `ts` object that assigns years from 2010 to 2019 as time stamps: 
+
+```{r}
+ts_annual <- ts(x, start = 2010, frequency = 1)
+ts_annual
+```
+
+Note that newly created data `tsx` is still numeric with additional attributes indicating the start, end and the frequency of the data points. 
+
+```{r}
+class(ts_annual)
+attributes(ts_annual)
+```
+The class of `ts_annual` vector is `ts`. The `tsp` attribute shows the start, end, and the frequency of the time series (1 means yearly data). 
+
+The base `R`'s `plot` function recognizes the class and draws the appropriate time series graph: 
+```{r}
+plot(ts_annual)
+```
+
+Note that if we use the `plot` function in the same for the numeric vector `x` we obtain: 
+```{r}
+plot(x)
+```
+
+For a collection of time series we have a numeric matrix with time attributes. 
+As an example, consider the simulated data set: 
+```{r}
+set.seed(22)
+n <- 120
+x1 <- rnorm(n)
+x2 <- rnorm(n)
+t <- 1:n
+y <- 10 + 0.1*t + 2*x1 - 3*x2 + rnorm(n)
+df1 <- data.frame(y, x1, x2)
+head(df1)
+```
+
+Let's assume that this is a set of monthly realizations over a 10 year period starting 2010m1: 
+```{r}
+ts_monthly <- ts(df1, start = c(2010, 1), end = c(2019, 12), frequency = 12)
+head(ts_monthly)
+```
+```{r}
+attributes(ts_monthly)
+```
+
+
+```{r}
+class(ts_monthly)
+```
+
+```{r}
+plot(ts_monthly)
+```
+
+
+
+Similarly, a quarterly `ts` object can be created using
+```{r}
+ts_quarterly <- ts(runif(8), start = c(2018, 1), frequency = 4)
+ts_quarterly
+```
+
+A subset of observations can be created using the `window` function. For example, usig the `ts_monthly` data set, create another `ts` object from 2018m1 to the end:  
+```{r}
+ts_monthly_subset <- window(ts_monthly, start=c(2018,1))
+ts_monthly_subset
+```
+
+
+
+## `zoo` object
+
+One of the drawback of `ts` class is that the time stamp can only be numeric. Although this may be fine for monthly, quarterly, and annual data, more general time indexes, such as irregularly spaced hourly or daily data, may be difficult to handle. Also, if there are missing values in the data, specifying start, end, and the frequency may not be sufficient to define to time series. 
+
+There are several alternatives to `ts` class. The package `zoo` (and the associated `zoo` class) is suggested by [Zeileis and Grothendieck (2005)](http://dx.doi.org/10.18637/jss.v014.i06). Also see the CRAN page: [zoo: S3 Infrastructure for Regular and Irregular Time Series (Z's Ordered Observations)](https://cran.r-project.org/web/packages/zoo/index.html). 
+
+```{r}
+library(zoo)
+n <- 10
+dates <- seq(as.Date("2020-12-01"), length = n, by = "days")
+dates
+x_zoo <- zoo(x = rnorm(n), order.by = dates)
+x_zoo
+```
+
+```{r}
+class(x_zoo)
+```
+
+```{r}
+plot(x_zoo)
+```
+
+
+A `ts` can be converted into a `zoo` object using `as.zoo` function. The reverse is possible using `as.ts` function. 
+
+```{r}
+zoo_monthly <- as.zoo(ts_monthly)
+plot(zoo_monthly)
+```
+
+As another example let's plot the built-in data `AirPassengers` using `zoo` package: 
+```{r}
+plot(autoplot.zoo(as.zoo(AirPassengers)))
+```
+
+
+## `xts` object
+
+`xts` or Extensible Time Series object extends the capabilities of a `zoo` object. `xts` can handle POSIXct and Date classes to represent time. For more information visit CRAN page: [xts: eXtensible Time Series](https://cran.r-project.org/web/packages/xts/index.html). 
+
+
+```{r}
+library(xts)
+xts_data1 <- xts(x = runif(5), order.by=Sys.Date()-1:5) 
+colnames(xts_data1) <- "var1"
+xts_data1
+```
+
+```{r}
+# sunspots data
+data("sunspots")
+xts_sunspots <- as.xts(sunspots)
+head(xts_sunspots)
+```
+
+```{r}
+class(xts_sunspots)
+periodicity(xts_sunspots)
+```
+
+```{r}
+plot(xts_sunspots)
+```
+
+Here is an example of daily data: 
+```{r}
+data("sample_matrix")
+xts_daily <- as.xts(sample_matrix)
+head(xts_daily)
+```
+
+```{r}
+plot(xts_daily)
+```
+
+
+
+## `tsibble` object
+
+A more recent alternative is to use the framework provided by the meta package `tidyverts` designed by R. Hyndman and his friends. [tidyverts](https://tidyverts.org/) consists of four packages: `tsibble`, `fable`, `feasts`, and `tsibbledata.` It is designed to work closely with `tidyverse` collection of packages. It follows the tidy data approach and easily integrates with the functions in [tidyverse](https://www.tidyverse.org/). 
+
+More information on `tsibble` object can be found at [tsibble: Tidy Temporal Data Frames and Tools](https://cran.r-project.org/web/packages/tsibble/index.html). Also, the book [Hyndman, R.J., & Athanasopoulos, G. (2019) Forecasting: principles and practice, 3rd edition, OTexts: Melbourne, Australia.](https://otexts.com/fpp3/) uses the `tidyverts` framework. 
+
+
+We can easily create a `tsibble` object using 
+```{r tsibbleex1, warning=FALSE}
+library(tsibble)
+tsdata1 <- tsibble(year = 2017:2019, 
+                   var1 = c(100, 90, 105), 
+                   index = year)
+tsdata1
+```
+
+A `tsibble` object always has a an index to represent time (and an optional key or keys). In the simple example above, time index is year. 
+
+
+As another example, consider the following data where have two-year observations on GDP per capita (TL in nominal terms) in three provinces Istanbul, Ankara and Izmir. In this example time index is year and key variable is province. The key variable must be provided in this example because there are multiple measurements on the same time index (that is, year). This is a minimal example of a panel (or longitudinal) data set.  
+```{r tsibbleex2}
+tsdata2 <- tsibble(year = c(rep(2017,3), rep(2018,3)), 
+                   province = rep(c("Istanbul", "Ankara", "Izmir"),2), 
+                   GDPpc = c(65195,51922,45102,76769,60249,54305), 
+                   index = year, 
+                   key = province
+                   )
+tsdata2
+```
+
+```{r}
+index(tsdata2)
+```
+
+```{r}
+key(tsdata2)
+```
+
+As a more complicated example, here is a cross-country panel data set from `tsibbledata` package: 
+
+```{r}
+library(tsibbledata)
+data("global_economy")
+global_economy
+```
+
+In the `global_economy` data set, the time index is `Year` and key is `Country`. 
+
+Commonly employed time formats and associated functions  are summarized in the table below: (Source: [Hyndman and Athanasopoulos (2019) Forecasting: principles and practice, 3rd edition](https://otexts.com/fpp3/))
+
+| **Interval** | **Class**                 |**Function**               |
+|--------------|---------------------------|---------------------------|
+| Annual       | `integer`/`double`        | `start:end`               |
+| Quarterly    | `yearquarter`             | `yearquarter()`           |
+| Monthly      | `yearmonth`               | `yearmonth()`             |
+| Weekly       | `yearweek`                | `yearweek()`              |
+| Daily        | `Date`/`difftime`         | `as_date()`, `ymd()`      |
+| Subdaily     | `POSIXt`/`difftime`/`hms` | `as_datetime()`           |
+|                                                                      |
+
+
+
+An existing time series object can be converted into a `tsibble` object.  
+```{r message=FALSE, warning=FALSE}
+library(tsibble)
+library(tidyverse)
+library(lubridate)
+library(xts)
+library(fpp3)
+# use built-in daily data on closing prices from xts package
+data("sample_matrix")
+head(sample_matrix)
+```
+
+
+```{r}
+# convert sample_matrix into tibble and create a date variable
+df1 <- tibble(date = rownames(sample_matrix), 
+              close = sample_matrix[,4]
+              )
+df1 <- df1 %>% 
+  mutate(date = lubridate::ymd(date))
+df1
+```
+
+
+```{r} 
+tsibble_daily <- as_tsibble(df1, index = date)
+tsibble_daily
+```
+
+We can create a new data set by averaging closing prices within a month. Let's first create a new variable `year_month` using the `tsibble::yearmonth()` function. This will be used as a grouping variable and index variable in the new data set. 
+```{r}
+tsibble_monthly <- tsibble_daily %>% 
+  mutate(year_month = yearmonth(date))
+tsibble_monthly
+```
+
+The data set `tsibble_monthly` still has `date` as the time index. Note that 
+the variable `year_month` repeats the same values within the same year-month combination, as expected. Using `index_by()` function, we can compute summary statistics by grouping on the time index (this is similar to `group_by()` in `dplyr` package). 
+
+```{r}
+tsibble_monthly2 <- tsibble_monthly %>% 
+  index_by(year_month) %>% 
+  summarize(close_avr = mean(close), 
+            count = n())
+tsibble_monthly2
+```
+
+Graph of daily data: 
+```{r}
+tsibble_daily %>% autoplot(close)
+```
+```{r}
+tsibble_monthly2 %>% autoplot(close_avr)
+```
+
+
+<br>
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

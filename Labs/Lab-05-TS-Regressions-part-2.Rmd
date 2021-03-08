@@ -1,0 +1,192 @@
+---
+title: "Lab 05: Introduction to Time Series Regressions - Part II"
+subtitle: "Econometrics II - YTU"
+author: 
+  name: "Prof. Dr. Hüseyin Taştan"
+  affiliation: "Yıldız Technical University"
+# date: "`r format(Sys.time(), '%d %B %Y')`"
+date: 2021 Spring
+output: 
+  html_document:
+    number_sections: true
+    theme: readable
+    highlight: haddock 
+    # code_folding: show
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+    keep_md: true
+---
+<style type="text/css"> 
+body{
+  font-size: 12pt;
+}
+code.r{
+  font-size: 12pt;
+}
+</style>
+
+```{r setup, include=FALSE}
+# knitr::opts_chunk$set(echo = TRUE, results = 'asis', fig.show = 'asis')
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+``` 
+
+# Replicating Examples in ch.11 of Wooldridge's Text (6th ed) 
+
+## Example 11.4: Efficient Market Hypothesis
+
+Can we beat the market?
+
+```{r, message=FALSE, warning=FALSE}
+library(wooldridge)
+library(dynlm)
+library(stargazer)
+data(nyse, package='wooldridge') 
+nysets <- ts(nyse)
+head(nysets)
+```
+
+Note that because return is defined as 
+\[
+return_t = 100\times \frac{price_t-price_{t-1}}{price_{t-1}}
+\]
+the first observation is NA (missing). Also, when we take the first lag of return we lose another observation (see the column `return_1`. The same applies to the changes as well (ie., cprice) which is defined as 
+\[
+cprice_t \equiv \Delta price_t = price_t - price_{t-1}
+\]
+
+
+Estimate AR(p) models using OLS and summarize the results in a table using `stargazer` package: 
+```{r}
+# Dynamic models: AR(p)
+reg1 <- dynlm(return ~ L(return)                        , data=nysets) 
+reg2 <- dynlm(return ~ L(return)+L(return,2)            , data=nysets) 
+reg3 <- dynlm(return ~ L(return)+L(return,2)+L(return,3), data=nysets) 
+# Regression Table
+stargazer(reg1, reg2, reg3, type="text",
+                            keep.stat=c("n","rsq","adj.rsq","f"))
+```
+
+**Exercise**: Download Google stock data and estimate AR models with lags 1, 2, and 3. 
+**Solution**: Google stock market data data is available in `GOOGL.RData` file in Data folder. This was downloaded from Yahoo Finance using `quantmod` package. Here is the commands I used: 
+```{r, eval=FALSE}
+# Download daily stock market data using quantmod package
+# and save the resulting data set (xts object)
+library(quantmod) # need this to download stock market data from Yahoo Finance
+# Download data using the quantmod package:
+getSymbols("GOOGL", auto.assign = TRUE)
+# save(GOOGL, file="Data/GOOGL.RData")
+```
+
+Load the data set and display the first six observations:
+```{r}
+library(forecast)
+library(zoo)
+library(dynlm)
+library(stargazer)
+library(ggplot2)
+load("../Data/GOOGL.RData")
+head(GOOGL)
+```
+```{r}
+autoplot(GOOGL[, "GOOGL.Adjusted"]) +
+  ggtitle("Google Daily Closing Prices") + xlab("")
+```
+
+
+```{r}
+# Calculate return as the log difference
+googret <- diff(log(GOOGL$GOOGL.Adjusted) )
+
+# Plot returns
+autoplot(googret) + xlab("")
+```
+
+
+```{r}
+# Dynamic models: Ar(1), AR(2), AR(3)
+googret <- as.zoo(googret)  # dynlm cannot handle xts objects
+reg1 <- dynlm(googret~L(googret) ) 
+reg2 <- dynlm(googret~L(googret)+L(googret,2) ) 
+reg3 <- dynlm(googret~L(googret)+L(googret,2)+L(googret,3) ) 
+
+# regression table
+stargazer(reg1, reg2, reg3, type="text",
+                            keep.stat=c("n","rsq","adj.rsq","f"))
+```
+
+**EXercise**: Can we predict Google returns? 
+
+## Example 11.5: Expectations Augmented Phillips Curve
+
+```{r}
+library(forecast)
+library(wooldridge) 
+library(dynlm) 
+tsphillips <- ts(phillips, start=1948, end=1996, frequency = 1)
+reg1 <- dynlm(d(inf) ~ unem, data = tsphillips)
+summary(reg1)
+```
+
+
+```{r}
+# plot the residuals
+uhat <- resid(reg1) 
+autoplot(uhat)+ 
+  geom_hline(yintercept = 0,linetype="dashed", color = "red")
+```
+
+## Example 11.6: Fertility Equation in First Differences
+
+
+```{r}
+library(dynlm)
+library(stargazer)
+data(fertil3, package='wooldridge')
+
+# Define Yearly time series beginning in 1913
+fertil_ts <- ts(fertil3, start=1913)
+# display the first 5 autocorrelations of gfr
+(acf(fertil_ts[, "gfr"], 5))
+```
+
+```{r}
+# Regression in first differences:
+res1 <- dynlm( d(gfr) ~ d(pe), data=fertil_ts)
+
+# FDL in first differences
+res2 <- dynlm( d(gfr) ~ d(pe) + L(d(pe)) + L(d(pe),2), data=fertil_ts)
+
+# table
+stargazer(res1, res2, type="text") 
+```
+
+## Example 11.7: Wages and Productivity
+
+
+```{r}
+# Regression with linear trend
+library(dynlm)
+library(wooldridge)
+data(earns, package='wooldridge')
+
+# Define ts object
+earns_ts <- ts(earns, start=1947, end=1987)
+
+fit1 <- dynlm( log(hrwage) ~ log(outphr) + trend(earns_ts), data=earns_ts)
+summary(fit1)
+```
+
+
+```{r}
+# Regression in first differences
+fit2 <- dynlm( d(log(hrwage)) ~ d(log(outphr)), data=earns_ts)
+summary(fit2)
+```
+
+**Exercise** Write down both models in equation form and interpret the results. 
+
+<br>
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
+
+

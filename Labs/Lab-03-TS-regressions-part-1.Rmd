@@ -1,0 +1,353 @@
+---
+title: "Lab 03: Introduction to Time Series Regressions - Part 1"
+subtitle: "Econometrics II - YTU"
+author: 
+  name: "Prof. Dr. Hüseyin Taştan"
+  affiliation: "Yıldız Technical University"
+# date: "`r format(Sys.time(), '%d %B %Y')`"
+date: 2021 Spring
+output: 
+  html_document:
+    number_sections: true
+    theme: readable
+    highlight: haddock 
+    # code_folding: show
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+    keep_md: true
+---
+<style type="text/css"> 
+body{
+  font-size: 12pt;
+}
+code.r{
+  font-size: 12pt;
+}
+</style>
+
+```{r setup, include=FALSE}
+# knitr::opts_chunk$set(echo = TRUE, results = 'asis', fig.show = 'asis')
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+``` 
+
+# Replicating Examples in ch.10 of Wooldridge's Text (6th ed) 
+
+## Example 10.1: Static Phillips Curve
+
+```{r message=FALSE, warning=FALSE, results="hold"}
+# Install packages
+library(wooldridge)
+library(dynlm)
+library(lmtest)
+library(car)
+```
+
+We first need to define a time series (ts) object in R. 
+```{r}
+# create a ts object 
+inf <- ts(phillips$inf, start=1948, frequency = 1)
+unem <- ts(phillips$unem, start=1948, frequency = 1)
+# all variables in the data set: 
+tsphillips <- ts(phillips, start=1948, frequency = 1)
+tsphillips
+```
+
+### Time series plots
+
+Using the base R plot function, we have 
+```{r}
+plot(unem)
+plot(inf)
+# ts.plot(tsphillips[,2:3])
+
+ts.plot(unem,inf, col = c("black", "red"), lty=1:2, xlab="")
+legend("topleft", bty="n", lty=1:2, col=c("black","red"),
+       legend=c(" unem ", " inf "))
+```
+
+Altarnatively, we can use `ggplot()` as follows
+```{r}
+library(ggplot2)
+ggplot(data = phillips, aes(year,inf)) + 
+  geom_line() + 
+  ylab("Inflation") + 
+  xlab("Year")
+```
+
+
+Both inflation and unemployment on the same graph: 
+```{r}
+ggplot(data = phillips) +
+  geom_line(aes(year, inf, color="inflation")) + 
+  geom_line(aes(year, unem, color="unemployment")) +
+  labs(color="") + 
+  ylab("")
+```
+
+Here is another way which uses `forecast::autoplot()` function: 
+```{r}
+library(forecast)
+library(ggplot2)
+autoplot(inf, series = "inflation") + 
+  autolayer(unem, series = "unemployment") +
+  xlab("") + ylab("") + 
+  ggtitle("Inflation and Unemployment Rate: 1948-2003")
+```
+
+
+### Static regression
+
+```{r}
+# using lm function
+res <- lm(inf ~ unem, data = phillips)
+summary(res)
+```
+
+
+```{r}
+# or using dynlm package 
+res1 <- dynlm(inf ~ unem, data  = tsphillips)
+summary(res1)
+```
+
+The results suggest that inflation and unemployment move in the same direction, contradicting the Phillips curve theory (but we will see that there are several problems with regressions like this). 
+
+## Example 10.2: Effects of Inflation and Deficits on Interest Rates
+
+```{r}
+# create a ts object 
+i3 <- ts(intdef$i3, start=1948, frequency = 1)
+inf <- ts(intdef$inf, start=1948, frequency = 1)
+# plot
+ts.plot(i3,inf, col = c("black", "red"), lty=1:2, xlab="")
+legend("topleft", bty="n", lty=1:2, col=c("black","red"),
+       legend=c(" i3 ", " inf "))
+```
+
+```{r}
+ggplot(data = intdef) +  
+  geom_line(aes(year, i3, color="i3")) + 
+  geom_line(aes(year, inf, color="inf")) + 
+  labs(color="") +
+  ylab("") +
+  theme_bw()
+```
+
+```{r}
+tsintdata <- ts(intdef, start = 1948, frequency = 1)
+i3_inf <- ts(tsintdata[,2:3], 
+             start = 1948, frequency = 1)
+head(i3_inf)
+```
+
+Using `ggfortify` package, plot inf and i3 together: 
+```{r}
+library(ggfortify)
+autoplot(i3_inf)
+```
+
+
+```{r}
+# static model:
+intmodel1 <- lm(i3 ~ inf + def, data = intdef)
+summary(intmodel1)
+```
+
+```{r}
+# static model using dynlm package 
+intmodel2 <- dynlm(i3 ~ inf + def, data  = tsintdata)
+summary(intmodel2)
+```
+
+
+## Example 10.3: Puerto Rican Employment and the Minimum Wage
+
+```{r}
+minwage <- lm(lprepop ~ lmincov + lusgnp, data = prminwge)
+summary(minwage)
+```
+
+## Example 10.4: Effects of Personal Exemption on Fertility Rates
+
+```{r}
+data(fertil3, package='wooldridge')
+tsfertil <- ts(fertil3, start=1913)
+
+# graphs
+ts.plot(tsfertil[,1:2], col = c("black", "red"), lty=1:2, xlab="")
+legend("topleft", bty="n", lty=1:2, col=c("black","red"),
+       legend=c(" gfr ", " pr "))
+```
+
+```{r}
+# Static model 
+staticres <- dynlm(gfr ~ pe +  ww2 + pill, data = tsfertil)
+summary(staticres)
+```
+
+```{r}
+# Dynamic model using dynlm package
+# Note: L(pe) is the first lag of pe, L(pe,2) is the second lag
+dynres <- dynlm(gfr ~ pe + L(pe) + L(pe,2) + ww2 + pill, data = tsfertil)
+summary(dynres)
+coeftest(dynres)
+```
+
+```{r}
+# F test. H0: all pe coefficients are=0
+linearHypothesis(dynres, matchCoefs(dynres,"pe"))
+# Calculating the LRP
+b <- coef(dynres)
+b["pe"]+b["L(pe)"]+b["L(pe, 2)"]
+```
+
+```{r}
+# F test. H0: LRP=0
+linearHypothesis(dynres,"pe + L(pe) + L(pe, 2) = 0")
+```
+
+ 
+## Example 10.5: Antidumping Filings and Chemical Imports
+
+```{r}
+impts <- ts(barium$chnimp, start=c(1978,2), frequency=12)
+
+# plot time series
+plot(impts)
+```
+
+```{r}
+# Static model 
+bariumres <- dynlm(log(chnimp) ~ log(chempi) + log(gas) + log(rtwex) + 
+                     befile6 + affile6 + afdec6, data = barium)
+summary(bariumres)
+```
+
+## Example 10.7: Housing Investment and Prices
+
+```{r message=FALSE, warning=FALSE}
+library(dynlm)
+library(stargazer)
+data(hseinv, package = 'wooldridge')
+
+# Define Yearly time series beginning in 1947
+tsdata <- ts(hseinv, start=1947)
+```
+
+```{r}
+library(tsibble)
+tbledata <- as_tsibble(tsdata, index=year, pivot_longer = FALSE)
+# ts plot
+ggplot(data = tbledata) +  
+  geom_line(aes(year, log(invpc), color="log(invpc)")) + 
+  geom_line(aes(year, log(price), color="log(price)")) +   
+  labs(color="") +  
+  ylab("") +
+  theme_bw() +
+  scale_color_brewer(palette = "Set1")
+```
+
+
+
+```{r, warning=FALSE}
+# Linear regression of model with lags:
+res1 <- dynlm(log(invpc) ~ log(price), data = tsdata)
+res2 <- dynlm(log(invpc) ~ log(price) + trend(tsdata), data = tsdata)
+
+# regression table
+stargazer(res1,res2, type="text")
+```
+
+
+## Example 10.8: Fertility equation with linear and quadratic trend 
+
+
+```{r}
+# Static model with linear trend
+fertilres1 <- dynlm(gfr ~ pe +  ww2 + pill + trend(tsfertil), data = tsfertil)
+summary(fertilres1)
+```
+
+
+```{r}
+# Static model with linear trend
+data(fertil3, package='wooldridge')
+fertil3$trend <- 1:nrow(fertil3)
+fertil3$trendsq <- fertil3$trend^2
+tsfertil <- ts(fertil3, start=1913)
+fertilres2 <- lm(gfr ~ pe +  ww2 + pill + trend + trendsq, data = tsfertil)
+summary(fertilres2)
+```
+
+## Example 10.9: Puerto Rican Employment Model with Trend
+
+```{r}
+# add a linear trend 
+tsprminwage <- ts(prminwge, start=1950)
+minwage <- dynlm(lprepop ~ lmincov + lusgnp + 
+                   trend(tsprminwage, scale=FALSE), data = tsprminwage)
+summary(minwage)
+```
+
+## Example 10.11: Effects of Antidumping Filings with Seasonality
+
+```{r}
+# add seasonal dummies
+tsbarium <- ts(barium, start=c(1978,2), frequency = 12)
+bariumres <- dynlm(log(chnimp) ~ log(chempi) + log(gas) + log(rtwex) + 
+                                befile6 + affile6 + afdec6 + trend(tsbarium) + 
+                                season(tsbarium), data = tsbarium)
+summary(bariumres)
+```
+
+
+```{r}
+# test joint significance of seasonal dummies 
+# F test. H0: all seasonal coefficients are=0
+linearHypothesis(bariumres, matchCoefs(bariumres,"season"))
+```
+
+P value is 0.59 so we do not reject the null hypothesis. The seasonal effects are jointly insignificant. 
+
+# Example: Turkish Quarterly Real GDP 
+
+```{r}
+### TR RGDP seasonally adjusted
+library(dplyr)
+library(ggplot2)
+library(fpp2)
+load("../Data/RGDPTR.RData")
+lrgdp <- log(rgdp)
+autoplot(lrgdp) + 
+  xlab("") +
+  ggtitle("Log of Real GDP (Turkey): 1998q1-2019q3")
+```
+
+```{r}
+# Linear trend fit
+lintrend <- tslm(lrgdp ~ trend)
+summary(lintrend)
+```
+
+**Exercise** Write down the linear trend output in equation form. What's the quarterly average growth rate? What's the annual average growth rate? 
+
+Plot the residuals: 
+```{r}
+resid <- residuals(lintrend)
+autoplot(resid) 
+```
+
+Forecasting using linear trend model: 
+```{r}
+library(forecast)
+# Linear trend forecasts into 8 period ahead (2 years)
+linfor <- forecast(lintrend, h = 8) 
+autoplot(linfor) 
+```
+
+
+<br>
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
+
+
