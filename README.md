@@ -7,7 +7,7 @@ Instructor: Prof. Dr. Hüseyin Taştan
 ## Class Schedule 
 
 1. **Introduction**: 
-    * Syllabus: [pdf](https://raw.githack.com/htastan/Econometrics-II/main/syllabus.pdf) 
+    * Syllabus: [pdf](https://raw.githack.com/htastan/Econometrics-II/main/Syllabus.pdf) 
     * Linear Regression in Matrix Form: [handout](https://raw.githack.com/htastan/Econometrics-II/main/Slide-Handouts/Handout-01-Matrix-Algebra.pdf)
 
 2. **Linear Regression using Matrix Algebra (cont.)** 
