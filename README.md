@@ -32,7 +32,7 @@ Instructor: Prof. Dr. Hüseyin Taştan
     * Handout: [pdf](https://raw.githack.com/htastan/Econometrics-II/main/Slide-Handouts/Handout-06-Serial-Correlation-ch-12.pdf)
     * Lab: [R applications](https://raw.githack.com/htastan/Econometrics-II/main/Labs/Lab-06-Serial-Correlation-and-Heteroskedasticity.html)
     
-8. **Heteroscdeasticity in Time Series**
+8. **Heteroscedasticity in Time Series**
     * Handout: [pdf](https://raw.githack.com/htastan/Econometrics-II/main/Slide-Handouts/Handout-07-Heteroskedasticity-TS.pdf)
     * Lab: [R applications](https://raw.githack.com/htastan/Econometrics-II/main/Labs/Lab-06-Serial-Correlation-and-Heteroskedasticity.html)
     
