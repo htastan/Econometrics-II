@@ -4,12 +4,12 @@ subtitle: "Econometrics II - YTU"
 author: 
   name: "Prof. Dr. Hüseyin Taştan"
   affiliation: "Yıldız Technical University"
-# date: "13 Şubat 2021"
+# date: "16 Mart 2021"
 date: 2021 Spring
 output: 
   html_document:
     number_sections: true
-    theme: readable
+    theme: lumen
     highlight: haddock 
     # code_folding: show
     toc: yes
@@ -19,12 +19,15 @@ output:
 ---
 <style type="text/css"> 
 body{
-  font-size: 12pt;
+  background-color: #FAFAFA;
+  font-size: 18px;
+  line-height: 1.8;
 }
 code.r{
   font-size: 12pt;
 }
 </style>
+<br>
 
 
 
@@ -346,11 +349,11 @@ xts_data1
 
 ```
 ##                 var1
-## 2021-02-08 0.5986281
-## 2021-02-09 0.4638573
-## 2021-02-10 0.6464816
-## 2021-02-11 0.7256413
-## 2021-02-12 0.2013998
+## 2021-03-11 0.5986281
+## 2021-03-12 0.4638573
+## 2021-03-13 0.6464816
+## 2021-03-14 0.7256413
+## 2021-03-15 0.2013998
 ```
 
 
