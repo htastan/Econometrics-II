@@ -1,10 +1,12 @@
 # Econometrics-II
-Second part of the undergraduate Introductory Econometrics sequence (Wednesday 10.00-12.50)
+Second part of the undergraduate Introductory Econometrics sequence 
+
+Summer School (Tuesday: 13.00-17.50, Wednesday: 09.00-12.50)
 
 Instructor: Prof. Dr. Hüseyin Taştan 
 (Yıldız Technical University, Department of Economics)
 
-## Class Schedule 
+## Lecture Schedule 
 
 1. **Introduction**: 
     * Syllabus: [pdf](https://raw.githack.com/htastan/Econometrics-II/main/Syllabus.pdf) 
