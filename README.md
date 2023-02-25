@@ -1,7 +1,7 @@
 # Econometrics-II
 Second part of the undergraduate Introductory Econometrics sequence 
 
-Summer School (Wednesday: 09.00-12.50, Thursday: 13.00-17.50)
+2022-23 SPRING (Tuesday: 10.00-12.50)
 
 Instructor: Prof. Dr. Hüseyin Taştan 
 (Yıldız Technical University, Department of Economics)
@@ -54,7 +54,7 @@ Instructor: Prof. Dr. Hüseyin Taştan
     
 ## Scope and Purpose 
 
-This course is the second part of the Econometrics sequence. The purpose of this course is to teach fundamental methods of analysis in econometrics at the introductory level. In the first part, Econometrics I, offered in the Fall semester, we covered the classical linear regression model within the context of cross-sectional data and examined various extensions. Problems and issues arising in the regression analysis using time series data, such as trends, seasonality, non-stationarity, unit roots, etc., were left to the second part of the econometrics sequence. Econometrics II will particularly focus on the regression analysis with time series data and panel data. Topics in Econometrics II include the classical linear regression model (CNLRM) using matrix algebra, the properties and the nature of time series data, stationarity and dependency, unit roots and cointegration and panel data models.  
+This course is the second part of the Econometrics sequence. The purpose of this course is to teach fundamental methods of analysis in econometrics at the introductory level. In the first part, Econometrics I, offered in the Fall semester, we covered the classical linear regression model within the context of cross-sectional data and examined various extensions. Problems and issues arising in the regression analysis using time series data, such as trends, seasonality, non-stationarity, unit roots, etc., were left to the second part of the econometrics sequence. Econometrics II will particularly focus on the regression analysis with time series data. Topics in Econometrics II include the classical linear regression model (CNLRM) using matrix algebra, the properties and the nature of time series data, stationarity and dependency, unit roots and cointegration and forecasting.  
 
 **Econometrics software**: We will use `R` in class and in lab sessions. `R` is an open-source software for statistical computing and graphics which is widely used by statisticians, researchers, data scientists and econometricians as well as industry professionals. The latest version of `R` can be downloaded from: 
 [https://www.r-project.org/](https://www.r-project.org/) 
@@ -63,7 +63,7 @@ And R-studio may be used as an integrated development environment for `R`:
 
 ## Prerequisites
 
-  * You need to pass Econometrics I and Statistics I-II; also basic knowledge of algebra and calculus at the college level (Maths I-II). 
+  * Basic knowledge of Econometrics I and Statistics I-II is assumed. 
 
 ## Textbook
 
