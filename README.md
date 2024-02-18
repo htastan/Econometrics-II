@@ -1,8 +1,6 @@
 # Econometrics-II
 Second part of the undergraduate Introductory Econometrics sequence 
 
-2022-23 SPRING (Tuesday: 10.00-12.50)
-
 Instructor: Prof. Dr. Hüseyin Taştan 
 (Yıldız Technical University, Department of Economics)
 
