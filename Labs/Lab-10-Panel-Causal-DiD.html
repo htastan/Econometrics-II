@@ -1578,7 +1578,8 @@ Yıldız Technical University<br><h4 class="date">2021 Spring</h4>
 </div>
 
 
-<style type="text/css"> body{
+<style type="text/css">
+body{
 background-color: #FAFAFA;
 font-size: 18px;
 line-height: 1.8;
@@ -1590,7 +1591,9 @@ font-size: 12pt;
 <p><br></p>
 <p>In this lab we use the <code>wooldridge</code> package (which ships
 the textbook data sets) and the <code>plm</code> package for panel-data
-estimation. Install them once if needed:</p>
+estimation. The empirical examples reproduce Wooldridge’s
+<em>Introductory Econometrics</em> (Examples 14.4, 13.9, 13.3 and 13.4).
+Install the packages once if needed:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">&quot;wooldridge&quot;</span>, <span class="st">&quot;plm&quot;</span>, <span class="st">&quot;lmtest&quot;</span>, <span class="st">&quot;sandwich&quot;</span>, <span class="st">&quot;stargazer&quot;</span>))</span></code></pre></div>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(wooldridge)</span>
 <span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">library</span>(plm)</span>
@@ -1599,38 +1602,42 @@ estimation. Install them once if needed:</p>
 <span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="fu">library</span>(stargazer)</span></code></pre></div>
 <div id="part-i-panel-data" class="section level1" number="1">
 <h1><span class="header-section-number">1</span> Part I: Panel Data</h1>
-<div id="pooled-ols-fixed-effects-and-random-effects" class="section level2" number="1.1">
+<div id="pooled-ols-fixed-effects-and-random-effects-wooldridge-example-14.4" class="section level2" number="1.1">
 <h2><span class="header-section-number">1.1</span> Pooled OLS, Fixed
-Effects, and Random Effects</h2>
+Effects, and Random Effects (Wooldridge, Example 14.4)</h2>
 <p>We use the <code>wagepan</code> data set: a balanced panel of 545 men
 observed over 1980–1987 (<code>nr</code> = person id, <code>year</code>
-= time). The outcome is the log hourly wage (<code>lwage</code>).</p>
+= time). The outcome is the log hourly wage (<code>lwage</code>). This
+reproduces Wooldridge’s <strong>Example 14.4</strong>, a log wage
+equation with education, race, labor-market experience, marital and
+union status, and a full set of year dummies
+(<code>d81</code>–<code>d87</code>).</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;wagepan&quot;</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="co"># declare the panel structure: individual index = nr, time index = year</span></span>
 <span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>pdat <span class="ot">&lt;-</span> <span class="fu">pdata.frame</span>(wagepan, <span class="at">index =</span> <span class="fu">c</span>(<span class="st">&quot;nr&quot;</span>, <span class="st">&quot;year&quot;</span>))</span>
 <span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="fu">pdim</span>(pdat)</span></code></pre></div>
 <pre><code>## Balanced Panel: n = 545, T = 8, N = 4360</code></pre>
-<p>We estimate the effect of being in a union (<code>union</code>) and
-being married (<code>married</code>) on log wages, controlling for year
-effects.</p>
-<p><strong>Pooled OLS</strong> ignores the panel structure (treats every
-observation as independent):</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>pooled <span class="ot">&lt;-</span> <span class="fu">plm</span>(lwage <span class="sc">~</span> married <span class="sc">+</span> union <span class="sc">+</span> <span class="fu">factor</span>(year),</span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>              <span class="at">data =</span> pdat, <span class="at">model =</span> <span class="st">&quot;pooling&quot;</span>)</span></code></pre></div>
-<p><strong>Random effects (RE)</strong> assumes the unobserved effect
-<span class="math inline">\(a_i\)</span> is uncorrelated with the
-regressors:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>re <span class="ot">&lt;-</span> <span class="fu">plm</span>(lwage <span class="sc">~</span> married <span class="sc">+</span> union <span class="sc">+</span> <span class="fu">factor</span>(year),</span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>          <span class="at">data =</span> pdat, <span class="at">model =</span> <span class="st">&quot;random&quot;</span>)</span></code></pre></div>
-<p><strong>Fixed effects (FE, within)</strong> allows <span class="math inline">\(a_i\)</span> to be correlated with the regressors
-by demeaning within each person:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>fe <span class="ot">&lt;-</span> <span class="fu">plm</span>(lwage <span class="sc">~</span> married <span class="sc">+</span> union <span class="sc">+</span> <span class="fu">factor</span>(year),</span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>          <span class="at">data =</span> pdat, <span class="at">model =</span> <span class="st">&quot;within&quot;</span>)</span></code></pre></div>
+<p>We estimate the same specification three ways. Define the formula
+once:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>f <span class="ot">&lt;-</span> lwage <span class="sc">~</span> educ <span class="sc">+</span> black <span class="sc">+</span> hisp <span class="sc">+</span> exper <span class="sc">+</span> expersq <span class="sc">+</span> married <span class="sc">+</span> union <span class="sc">+</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>     d81 <span class="sc">+</span> d82 <span class="sc">+</span> d83 <span class="sc">+</span> d84 <span class="sc">+</span> d85 <span class="sc">+</span> d86 <span class="sc">+</span> d87</span></code></pre></div>
+<ul>
+<li><strong>Pooled OLS</strong> ignores the panel structure (treats
+every observation as independent).</li>
+<li><strong>Random effects (RE)</strong> keeps the unobserved effect
+<span class="math inline">\(a_i\)</span> but assumes it is
+<em>uncorrelated</em> with the regressors.</li>
+<li><strong>Fixed effects (FE, within)</strong> allows <span class="math inline">\(a_i\)</span> to be correlated with the regressors
+by demeaning within each person.</li>
+</ul>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>pooled <span class="ot">&lt;-</span> <span class="fu">plm</span>(f, <span class="at">data =</span> pdat, <span class="at">model =</span> <span class="st">&quot;pooling&quot;</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>re     <span class="ot">&lt;-</span> <span class="fu">plm</span>(f, <span class="at">data =</span> pdat, <span class="at">model =</span> <span class="st">&quot;random&quot;</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>fe     <span class="ot">&lt;-</span> <span class="fu">plm</span>(f, <span class="at">data =</span> pdat, <span class="at">model =</span> <span class="st">&quot;within&quot;</span>)</span></code></pre></div>
 <p>Compare the three estimators side by side:</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">stargazer</span>(pooled, re, fe, <span class="at">type =</span> <span class="st">&quot;text&quot;</span>,</span>
-<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>          <span class="at">column.labels =</span> <span class="fu">c</span>(<span class="st">&quot;Pooled&quot;</span>, <span class="st">&quot;RE&quot;</span>, <span class="st">&quot;FE&quot;</span>),</span>
-<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>          <span class="at">keep =</span> <span class="fu">c</span>(<span class="st">&quot;married&quot;</span>, <span class="st">&quot;union&quot;</span>),</span>
-<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>          <span class="at">keep.stat =</span> <span class="fu">c</span>(<span class="st">&quot;n&quot;</span>, <span class="st">&quot;rsq&quot;</span>))</span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">stargazer</span>(pooled, re, fe, <span class="at">type =</span> <span class="st">&quot;text&quot;</span>,</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>          <span class="at">column.labels =</span> <span class="fu">c</span>(<span class="st">&quot;Pooled&quot;</span>, <span class="st">&quot;RE&quot;</span>, <span class="st">&quot;FE&quot;</span>),</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>          <span class="at">keep =</span> <span class="fu">c</span>(<span class="st">&quot;educ&quot;</span>, <span class="st">&quot;black&quot;</span>, <span class="st">&quot;hisp&quot;</span>, <span class="st">&quot;exper&quot;</span>, <span class="st">&quot;expersq&quot;</span>, <span class="st">&quot;married&quot;</span>, <span class="st">&quot;union&quot;</span>),</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>          <span class="at">keep.stat =</span> <span class="fu">c</span>(<span class="st">&quot;n&quot;</span>, <span class="st">&quot;rsq&quot;</span>))</span></code></pre></div>
 <pre><code>## 
 ## ==========================================
 ##                   Dependent variable:     
@@ -1639,86 +1646,147 @@ by demeaning within each person:</p>
 ##               Pooled      RE        FE    
 ##                 (1)       (2)       (3)   
 ## ------------------------------------------
-## married      0.142***  0.080***  0.058*** 
+## educ         0.091***  0.092***           
+##               (0.005)   (0.011)           
+##                                           
+## black        -0.139*** -0.139***          
+##               (0.024)   (0.048)           
+##                                           
+## hisp           0.016     0.022            
+##               (0.021)   (0.043)           
+##                                           
+## exper        0.067***  0.106***  0.132*** 
+##               (0.014)   (0.015)   (0.010) 
+##                                           
+## expersq      -0.002*** -0.005*** -0.005***
+##               (0.001)   (0.001)   (0.001) 
+##                                           
+## married      0.108***  0.064***   0.047** 
 ##               (0.016)   (0.017)   (0.018) 
 ##                                           
-## union        0.176***  0.105***  0.083*** 
-##               (0.018)   (0.018)   (0.019) 
+## union        0.182***  0.106***  0.080*** 
+##               (0.017)   (0.018)   (0.019) 
 ##                                           
 ## ------------------------------------------
 ## Observations   4,360     4,360     4,360  
-## R2             0.113     0.155     0.169  
+## R2             0.189     0.181     0.181  
 ## ==========================================
 ## Note:          *p&lt;0.1; **p&lt;0.05; ***p&lt;0.01</code></pre>
-<p>The union and marriage premia shrink as we move from pooled OLS to
-FE. Part of the cross-sectional “premium” reflects time-invariant
-characteristics of the men (e.g. ability, stable job attachment) that FE
-differences away.</p>
+<p>Reading the table (these match Wooldridge’s Table 14.4):</p>
+<ul>
+<li>The return to education is about <strong>9.1%</strong> per year in
+pooled OLS and RE, but it <strong>cannot be estimated</strong> under FE
+– <code>educ</code> is constant over time for each man, so it is
+absorbed by the individual effect <span class="math inline">\(a_i\)</span>. The same happens to
+<code>black</code> and <code>hisp</code>.</li>
+<li>The <strong>marriage premium</strong> falls from
+<strong>0.108</strong> (pooled) to <strong>0.064</strong> (RE) to
+<strong>0.047</strong> (FE).</li>
+<li>The <strong>union premium</strong> falls from <strong>0.182</strong>
+(pooled) to <strong>0.106</strong> (RE) to <strong>0.080</strong>
+(FE).</li>
+</ul>
+<p>The cross-sectional (pooled) premia overstate the causal effect:
+married/union men differ in stable, unobserved ways (e.g. ability, job
+attachment) that are correlated with wages. FE differences those traits
+away, leaving a smaller – and more credible – estimate.</p>
 </div>
 <div id="time-invariant-regressors-drop-out-under-fe" class="section level2" number="1.2">
 <h2><span class="header-section-number">1.2</span> Time-invariant
 regressors drop out under FE</h2>
-<p>Education (<code>educ</code>) does not change over the sample for
-these men. If we add it to the FE model it is perfectly absorbed by the
-individual effect <span class="math inline">\(a_i\)</span> and cannot be
-estimated:</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>fe2 <span class="ot">&lt;-</span> <span class="fu">plm</span>(lwage <span class="sc">~</span> educ <span class="sc">+</span> married <span class="sc">+</span> union <span class="sc">+</span> <span class="fu">factor</span>(year),</span>
-<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>           <span class="at">data =</span> pdat, <span class="at">model =</span> <span class="st">&quot;within&quot;</span>)</span>
-<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="fu">coef</span>(fe2)[<span class="st">&quot;educ&quot;</span>]   <span class="co"># NA: educ is time-invariant and is differenced away</span></span></code></pre></div>
+<p>Education does not change over the sample for these men, so under FE
+it is perfectly absorbed by the individual effect <span class="math inline">\(a_i\)</span> and is not estimable:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">coef</span>(fe)[<span class="st">&quot;educ&quot;</span>]   <span class="co"># NA: educ is time-invariant and is differenced away</span></span></code></pre></div>
 <pre><code>## &lt;NA&gt; 
 ##   NA</code></pre>
+<p>(Note that <code>exper</code> is also dropped from the FE model:
+since experience increases by exactly one each year for everyone, its
+within-person variation is collinear with the year dummies.)</p>
 </div>
 <div id="hausman-test-fe-vs-re" class="section level2" number="1.3">
 <h2><span class="header-section-number">1.3</span> Hausman test: FE vs
 RE</h2>
 <p>The Hausman test compares the FE and RE estimates. Under <span class="math inline">\(H_0\)</span> the unobserved effect is uncorrelated
 with the regressors (RE is consistent and efficient); under <span class="math inline">\(H_1\)</span> only FE is consistent.</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="fu">phtest</span>(fe, re)</span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="fu">phtest</span>(fe, re)</span></code></pre></div>
 <pre><code>## 
 ##  Hausman Test
 ## 
-## data:  lwage ~ married + union + factor(year)
-## chisq = 18.286, df = 9, p-value = 0.032
+## data:  f
+## chisq = 31.707, df = 10, p-value = 0.000448
 ## alternative hypothesis: one model is inconsistent</code></pre>
-<p>A small p-value rejects <span class="math inline">\(H_0\)</span>,
-favoring the <strong>fixed effects</strong> estimator: the unobserved
-individual effect is correlated with union/marriage status.</p>
+<p>The test statistic is about <span class="math inline">\(\chi^2 =
+31.7\)</span> (<span class="math inline">\(p \approx 0.0004\)</span>),
+so we <strong>reject</strong> <span class="math inline">\(H_0\)</span>:
+the unobserved individual effect is correlated with the regressors and
+the <strong>fixed effects</strong> estimator is preferred over random
+effects.</p>
 </div>
 <div id="clustered-standard-errors" class="section level2" number="1.4">
 <h2><span class="header-section-number">1.4</span> Clustered standard
 errors</h2>
 <p>Idiosyncratic errors are typically serially correlated within a
 person, so we cluster standard errors at the individual level:</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="fu">coeftest</span>(fe, <span class="at">vcov =</span> <span class="fu">vcovHC</span>(fe, <span class="at">type =</span> <span class="st">&quot;sss&quot;</span>, <span class="at">cluster =</span> <span class="st">&quot;group&quot;</span>))</span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">coeftest</span>(fe, <span class="at">vcov =</span> <span class="fu">vcovHC</span>(fe, <span class="at">type =</span> <span class="st">&quot;sss&quot;</span>, <span class="at">cluster =</span> <span class="st">&quot;group&quot;</span>))</span></code></pre></div>
 <pre><code>## 
 ## t test of coefficients:
 ## 
-##                  Estimate Std. Error t value  Pr(&gt;|t|)    
-## married          0.058337   0.021335  2.7343 0.0062793 ** 
-## union            0.083370   0.023058  3.6157 0.0003034 ***
-## factor(year)1981 0.113549   0.024616  4.6128 4.104e-06 ***
-## factor(year)1982 0.167669   0.024272  6.9078 5.744e-12 ***
-## factor(year)1983 0.210939   0.024958  8.4517 &lt; 2.2e-16 ***
-## factor(year)1984 0.278407   0.027669 10.0620 &lt; 2.2e-16 ***
-## factor(year)1985 0.327462   0.027044 12.1084 &lt; 2.2e-16 ***
-## factor(year)1986 0.386807   0.028296 13.6702 &lt; 2.2e-16 ***
-## factor(year)1987 0.447037   0.027378 16.3283 &lt; 2.2e-16 ***
+##            Estimate  Std. Error t value  Pr(&gt;|t|)    
+## exper    0.13214642  0.01200666 11.0061 &lt; 2.2e-16 ***
+## expersq -0.00518550  0.00081015 -6.4007 1.735e-10 ***
+## married  0.04668036  0.02100141  2.2227 0.0262929 *  
+## union    0.08000186  0.02274049  3.5180 0.0004398 ***
+## d81      0.01904479  0.02272406  0.8381 0.4020334    
+## d82     -0.01132198  0.02121426 -0.5337 0.5935825    
+## d83     -0.04199552  0.02050633 -2.0479 0.0406354 *  
+## d84     -0.03847088  0.02116972 -1.8173 0.0692559 .  
+## d85     -0.04324982  0.01759294 -2.4584 0.0140015 *  
+## d86     -0.02738194  0.01621620 -1.6886 0.0913866 .  
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
 </div>
-<div id="two-period-first-differencing" class="section level2" number="1.5">
+<div id="two-period-first-differencing-wooldridge-example-13.9" class="section level2" number="1.5">
 <h2><span class="header-section-number">1.5</span> Two-period first
-differencing</h2>
+differencing (Wooldridge, Example 13.9)</h2>
 <p>With only two periods, the fixed-effects estimator is identical to
-first differencing. We replicate Wooldridge’s Example 13.9 using
-<code>crime2</code>: a panel of 46 cities observed in 1982 and 1987. The
-data set already stores the changes (<code>ccrmrte</code> = <span class="math inline">\(\Delta\)</span> crime rate, <code>cunem</code> =
-<span class="math inline">\(\Delta\)</span> unemployment) on the 1987
-rows. Regressing the change in the crime rate on the change in
-unemployment removes any time-constant city characteristics:</p>
-<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;crime2&quot;</span>)</span>
-<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a>fd <span class="ot">&lt;-</span> <span class="fu">lm</span>(ccrmrte <span class="sc">~</span> cunem, <span class="at">data =</span> <span class="fu">subset</span>(crime2, year <span class="sc">==</span> <span class="dv">87</span>))</span>
-<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="fu">summary</span>(fd)</span></code></pre></div>
+first differencing. We reproduce Wooldridge’s <strong>Example
+13.9</strong> using <code>crime2</code>: 46 cities observed in 1982 and
+1987.</p>
+<p>First, a pooled regression in <strong>levels</strong> (with a year
+dummy <code>d87</code>) finds essentially no relationship between
+unemployment and the crime rate:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;crime2&quot;</span>)</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a><span class="fu">summary</span>(<span class="fu">lm</span>(crmrte <span class="sc">~</span> d87 <span class="sc">+</span> unem, <span class="at">data =</span> crime2))</span></code></pre></div>
+<pre><code>## 
+## Call:
+## lm(formula = crmrte ~ d87 + unem, data = crime2)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -53.474 -21.794  -6.266  18.297  75.113 
+## 
+## Coefficients:
+##             Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)  93.4202    12.7395   7.333 9.92e-11 ***
+## d87           7.9404     7.9753   0.996    0.322    
+## unem          0.4265     1.1883   0.359    0.720    
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 29.99 on 89 degrees of freedom
+## Multiple R-squared:  0.01221,    Adjusted R-squared:  -0.009986 
+## F-statistic: 0.5501 on 2 and 89 DF,  p-value: 0.5788</code></pre>
+<p>The unemployment coefficient (about 0.43) is small and statistically
+<strong>insignificant</strong> – an implausible result. Cities with high
+and low unemployment differ in many unobserved, time-constant ways (the
+omitted city effect), which contaminates the levels comparison.</p>
+<p><code>crime2</code> already stores the changes on its 1987 rows
+(<code>ccrmrte</code> = <span class="math inline">\(\Delta\)</span>
+crime rate, <code>cunem</code> = <span class="math inline">\(\Delta\)</span> unemployment). Regressing the
+change in the crime rate on the change in unemployment removes any
+time-constant city characteristics:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a>fd <span class="ot">&lt;-</span> <span class="fu">lm</span>(ccrmrte <span class="sc">~</span> cunem, <span class="at">data =</span> <span class="fu">subset</span>(crime2, year <span class="sc">==</span> <span class="dv">87</span>))</span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a><span class="fu">summary</span>(fd)</span></code></pre></div>
 <pre><code>## 
 ## Call:
 ## lm(formula = ccrmrte ~ cunem, data = subset(crime2, year == 87))
@@ -1737,46 +1805,44 @@ unemployment removes any time-constant city characteristics:</p>
 ## Residual standard error: 20.05 on 44 degrees of freedom
 ## Multiple R-squared:  0.1267, Adjusted R-squared:  0.1069 
 ## F-statistic: 6.384 on 1 and 44 DF,  p-value: 0.01519</code></pre>
-<p>Compare this with a (naive) pooled regression of the crime rate on
-unemployment, which ignores city heterogeneity and even gets the sign
-“wrong”:</p>
-<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a>pooled_crime <span class="ot">&lt;-</span> <span class="fu">lm</span>(crmrte <span class="sc">~</span> unem, <span class="at">data =</span> crime2)</span>
-<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a><span class="fu">coef</span>(<span class="fu">summary</span>(pooled_crime))</span></code></pre></div>
-<pre><code>##                Estimate Std. Error    t value     Pr(&gt;|t|)
-## (Intercept) 103.2433994  8.0587367 12.8113628 5.361812e-22
-## unem         -0.3076641  0.9317223 -0.3302101 7.420087e-01</code></pre>
-<p>Once we difference out the fixed city effects, higher unemployment is
-associated with a higher crime rate.</p>
+<p>Now the effect is <strong>positive and significant</strong>: a
+one-point rise in the unemployment rate is associated with about
+<strong>2.2 more crimes per 1,000 people</strong> (the intercept, <span class="math inline">\(\approx 15.4\)</span>, captures the secular
+increase in crime between 1982 and 1987). Differencing out the
+time-constant city heterogeneity uncovers the relationship that the
+levels regression missed.</p>
 </div>
 </div>
 <div id="part-ii-causal-inference-difference-in-differences" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> Part II: Causal
 Inference &amp; Difference-in-Differences</h1>
-<div id="difference-in-differences-the-incinerator-example" class="section level2" number="2.1">
+<div id="difference-in-differences-the-incinerator-example-wooldridge-examples-13.3-13.4" class="section level2" number="2.1">
 <h2><span class="header-section-number">2.1</span>
-Difference-in-Differences: the incinerator example</h2>
-<p>We replicate Wooldridge’s Example 13.3 (<code>kielmc</code>): did the
-rumor/construction of a garbage incinerator in North Andover, MA lower
-nearby housing prices? We have repeated cross sections of house sales in
-<strong>1978</strong> (before) and <strong>1981</strong> (after).</p>
+Difference-in-Differences: the incinerator example (Wooldridge, Examples
+13.3 &amp; 13.4)</h2>
+<p>Did the rumor and construction of a garbage incinerator in North
+Andover, MA depress nearby house prices? We use repeated cross sections
+of house sales in <strong>1978</strong> (before) and
+<strong>1981</strong> (after).</p>
 <ul>
 <li>Treatment group: houses <strong>near</strong> the incinerator site
 (<code>nearinc = 1</code>).</li>
 <li>Control group: houses farther away (<code>nearinc = 0</code>).</li>
 <li><code>y81 = 1</code> for the after period (1981).</li>
 </ul>
-<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;kielmc&quot;</span>)</span>
-<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a><span class="co"># group-by-period mean real prices: the 2x2 table</span></span>
-<span id="cb20-3"><a href="#cb20-3" tabindex="-1"></a><span class="fu">aggregate</span>(rprice <span class="sc">~</span> y81 <span class="sc">+</span> nearinc, <span class="at">data =</span> kielmc, <span class="at">FUN =</span> mean)</span></code></pre></div>
+<p>The <span class="math inline">\(2\times 2\)</span> table of average
+<strong>real</strong> prices (1978 dollars):</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;kielmc&quot;</span>)</span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a><span class="fu">aggregate</span>(rprice <span class="sc">~</span> y81 <span class="sc">+</span> nearinc, <span class="at">data =</span> kielmc, <span class="at">FUN =</span> mean)</span></code></pre></div>
 <pre><code>##   y81 nearinc    rprice
 ## 1   0       0  82517.23
 ## 2   1       0 101307.51
 ## 3   0       1  63692.86
 ## 4   1       1  70619.24</code></pre>
-<p>The DiD estimate is the coefficient on the
-<strong>interaction</strong> <code>y81:nearinc</code>:</p>
-<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a>did <span class="ot">&lt;-</span> <span class="fu">lm</span>(rprice <span class="sc">~</span> nearinc <span class="sc">+</span> y81 <span class="sc">+</span> y81<span class="sc">:</span>nearinc, <span class="at">data =</span> kielmc)</span>
-<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a><span class="fu">summary</span>(did)</span></code></pre></div>
+<p><strong>Example 13.3</strong> – the simple DiD is the coefficient on
+the <strong>interaction</strong> <code>y81:nearinc</code>:</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a>did <span class="ot">&lt;-</span> <span class="fu">lm</span>(rprice <span class="sc">~</span> nearinc <span class="sc">+</span> y81 <span class="sc">+</span> y81<span class="sc">:</span>nearinc, <span class="at">data =</span> kielmc)</span>
+<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a><span class="fu">summary</span>(did)</span></code></pre></div>
 <pre><code>## 
 ## Call:
 ## lm(formula = rprice ~ nearinc + y81 + y81:nearinc, data = kielmc)
@@ -1797,17 +1863,23 @@ nearby housing prices? We have repeated cross sections of house sales in
 ## Residual standard error: 30240 on 317 degrees of freedom
 ## Multiple R-squared:  0.1739, Adjusted R-squared:  0.1661 
 ## F-statistic: 22.25 on 3 and 317 DF,  p-value: 4.224e-13</code></pre>
-<p>The interaction coefficient is the causal effect of being near the
-incinerator on the house price. Adding controls (so parallel trends
-needs to hold only conditionally) sharpens the estimate:</p>
-<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a>did_ctrl <span class="ot">&lt;-</span> <span class="fu">lm</span>(<span class="fu">log</span>(rprice) <span class="sc">~</span> nearinc <span class="sc">+</span> y81 <span class="sc">+</span> y81<span class="sc">:</span>nearinc <span class="sc">+</span></span>
-<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a>                 age <span class="sc">+</span> <span class="fu">I</span>(age<span class="sc">^</span><span class="dv">2</span>) <span class="sc">+</span> <span class="fu">log</span>(intst) <span class="sc">+</span> <span class="fu">log</span>(land) <span class="sc">+</span> <span class="fu">log</span>(area) <span class="sc">+</span></span>
-<span id="cb24-3"><a href="#cb24-3" tabindex="-1"></a>                 rooms <span class="sc">+</span> baths, <span class="at">data =</span> kielmc)</span>
-<span id="cb24-4"><a href="#cb24-4" tabindex="-1"></a><span class="fu">coeftest</span>(did_ctrl)[<span class="st">&quot;nearinc:y81&quot;</span>, ]</span></code></pre></div>
+<p>The point estimate is about <strong>-$11,864</strong>: houses near
+the incinerator lost value relative to the control group after 1981. On
+its own, however, the estimate has a <span class="math inline">\(t\)</span>-statistic around <span class="math inline">\(-1.6\)</span> and is <strong>not</strong>
+statistically significant.</p>
+<p><strong>Example 13.4</strong> – adding house characteristics (so that
+parallel trends needs to hold only <em>conditionally</em>) sharpens the
+estimate. Following the textbook we use the log of price:</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" tabindex="-1"></a>did_ctrl <span class="ot">&lt;-</span> <span class="fu">lm</span>(lprice <span class="sc">~</span> nearinc <span class="sc">+</span> y81 <span class="sc">+</span> y81<span class="sc">:</span>nearinc <span class="sc">+</span></span>
+<span id="cb23-2"><a href="#cb23-2" tabindex="-1"></a>                 age <span class="sc">+</span> agesq <span class="sc">+</span> <span class="fu">log</span>(intst) <span class="sc">+</span> <span class="fu">log</span>(land) <span class="sc">+</span> <span class="fu">log</span>(area) <span class="sc">+</span></span>
+<span id="cb23-3"><a href="#cb23-3" tabindex="-1"></a>                 rooms <span class="sc">+</span> baths, <span class="at">data =</span> kielmc)</span>
+<span id="cb23-4"><a href="#cb23-4" tabindex="-1"></a><span class="fu">coeftest</span>(did_ctrl)[<span class="st">&quot;nearinc:y81&quot;</span>, ]</span></code></pre></div>
 <pre><code>##    Estimate  Std. Error     t value    Pr(&gt;|t|) 
-## -0.13151382  0.05197130 -2.53050829  0.01188439</code></pre>
-<p>With controls, houses near the incinerator fell roughly 13% in value
-relative to the control group after 1981.</p>
+## -0.13151383  0.05197130 -2.53050870  0.01188438</code></pre>
+<p>The interaction is now about <strong>-0.132</strong> and
+statistically significant: after the incinerator, houses near the site
+fell roughly <strong>13%</strong> in value relative to comparable houses
+farther away.</p>
 </div>
 <div id="card-and-krueger-1994-minimum-wage-and-employment" class="section level2" number="2.2">
 <h2><span class="header-section-number">2.2</span> Card and Krueger
@@ -1817,12 +1889,12 @@ relative to the control group after 1981.</p>
 reproduce it from the published group–period averages of
 full-time-equivalent (FTE) employment (Card and Krueger, 1994, Table
 3):</p>
-<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" tabindex="-1"></a>ck <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb26-2"><a href="#cb26-2" tabindex="-1"></a>  <span class="at">state  =</span> <span class="fu">c</span>(<span class="st">&quot;PA&quot;</span>, <span class="st">&quot;PA&quot;</span>, <span class="st">&quot;NJ&quot;</span>, <span class="st">&quot;NJ&quot;</span>),</span>
-<span id="cb26-3"><a href="#cb26-3" tabindex="-1"></a>  <span class="at">period =</span> <span class="fu">c</span>(<span class="st">&quot;before&quot;</span>, <span class="st">&quot;after&quot;</span>, <span class="st">&quot;before&quot;</span>, <span class="st">&quot;after&quot;</span>),</span>
-<span id="cb26-4"><a href="#cb26-4" tabindex="-1"></a>  <span class="at">fte    =</span> <span class="fu">c</span>(<span class="fl">23.33</span>, <span class="fl">21.17</span>, <span class="fl">20.44</span>, <span class="fl">21.03</span>)</span>
-<span id="cb26-5"><a href="#cb26-5" tabindex="-1"></a>)</span>
-<span id="cb26-6"><a href="#cb26-6" tabindex="-1"></a>ck</span></code></pre></div>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a>ck <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb25-2"><a href="#cb25-2" tabindex="-1"></a>  <span class="at">state  =</span> <span class="fu">c</span>(<span class="st">&quot;PA&quot;</span>, <span class="st">&quot;PA&quot;</span>, <span class="st">&quot;NJ&quot;</span>, <span class="st">&quot;NJ&quot;</span>),</span>
+<span id="cb25-3"><a href="#cb25-3" tabindex="-1"></a>  <span class="at">period =</span> <span class="fu">c</span>(<span class="st">&quot;before&quot;</span>, <span class="st">&quot;after&quot;</span>, <span class="st">&quot;before&quot;</span>, <span class="st">&quot;after&quot;</span>),</span>
+<span id="cb25-4"><a href="#cb25-4" tabindex="-1"></a>  <span class="at">fte    =</span> <span class="fu">c</span>(<span class="fl">23.33</span>, <span class="fl">21.17</span>, <span class="fl">20.44</span>, <span class="fl">21.03</span>)</span>
+<span id="cb25-5"><a href="#cb25-5" tabindex="-1"></a>)</span>
+<span id="cb25-6"><a href="#cb25-6" tabindex="-1"></a>ck</span></code></pre></div>
 <pre><code>##   state period   fte
 ## 1    PA before 23.33
 ## 2    PA  after 21.17
@@ -1830,14 +1902,14 @@ full-time-equivalent (FTE) employment (Card and Krueger, 1994, Table
 ## 4    NJ  after 21.03</code></pre>
 <p>Compute the two changes over time and the
 difference-in-differences:</p>
-<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" tabindex="-1"></a>d_PA <span class="ot">&lt;-</span> ck<span class="sc">$</span>fte[ck<span class="sc">$</span>state<span class="sc">==</span><span class="st">&quot;PA&quot;</span> <span class="sc">&amp;</span> ck<span class="sc">$</span>period<span class="sc">==</span><span class="st">&quot;after&quot;</span>] <span class="sc">-</span></span>
-<span id="cb28-2"><a href="#cb28-2" tabindex="-1"></a>        ck<span class="sc">$</span>fte[ck<span class="sc">$</span>state<span class="sc">==</span><span class="st">&quot;PA&quot;</span> <span class="sc">&amp;</span> ck<span class="sc">$</span>period<span class="sc">==</span><span class="st">&quot;before&quot;</span>]</span>
-<span id="cb28-3"><a href="#cb28-3" tabindex="-1"></a>d_NJ <span class="ot">&lt;-</span> ck<span class="sc">$</span>fte[ck<span class="sc">$</span>state<span class="sc">==</span><span class="st">&quot;NJ&quot;</span> <span class="sc">&amp;</span> ck<span class="sc">$</span>period<span class="sc">==</span><span class="st">&quot;after&quot;</span>] <span class="sc">-</span></span>
-<span id="cb28-4"><a href="#cb28-4" tabindex="-1"></a>        ck<span class="sc">$</span>fte[ck<span class="sc">$</span>state<span class="sc">==</span><span class="st">&quot;NJ&quot;</span> <span class="sc">&amp;</span> ck<span class="sc">$</span>period<span class="sc">==</span><span class="st">&quot;before&quot;</span>]</span>
-<span id="cb28-5"><a href="#cb28-5" tabindex="-1"></a></span>
-<span id="cb28-6"><a href="#cb28-6" tabindex="-1"></a>d_PA          <span class="co"># change in control group (PA)</span></span>
-<span id="cb28-7"><a href="#cb28-7" tabindex="-1"></a>d_NJ          <span class="co"># change in treatment group (NJ)</span></span>
-<span id="cb28-8"><a href="#cb28-8" tabindex="-1"></a>d_NJ <span class="sc">-</span> d_PA   <span class="co"># difference-in-differences estimate</span></span></code></pre></div>
+<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" tabindex="-1"></a>d_PA <span class="ot">&lt;-</span> ck<span class="sc">$</span>fte[ck<span class="sc">$</span>state<span class="sc">==</span><span class="st">&quot;PA&quot;</span> <span class="sc">&amp;</span> ck<span class="sc">$</span>period<span class="sc">==</span><span class="st">&quot;after&quot;</span>] <span class="sc">-</span></span>
+<span id="cb27-2"><a href="#cb27-2" tabindex="-1"></a>        ck<span class="sc">$</span>fte[ck<span class="sc">$</span>state<span class="sc">==</span><span class="st">&quot;PA&quot;</span> <span class="sc">&amp;</span> ck<span class="sc">$</span>period<span class="sc">==</span><span class="st">&quot;before&quot;</span>]</span>
+<span id="cb27-3"><a href="#cb27-3" tabindex="-1"></a>d_NJ <span class="ot">&lt;-</span> ck<span class="sc">$</span>fte[ck<span class="sc">$</span>state<span class="sc">==</span><span class="st">&quot;NJ&quot;</span> <span class="sc">&amp;</span> ck<span class="sc">$</span>period<span class="sc">==</span><span class="st">&quot;after&quot;</span>] <span class="sc">-</span></span>
+<span id="cb27-4"><a href="#cb27-4" tabindex="-1"></a>        ck<span class="sc">$</span>fte[ck<span class="sc">$</span>state<span class="sc">==</span><span class="st">&quot;NJ&quot;</span> <span class="sc">&amp;</span> ck<span class="sc">$</span>period<span class="sc">==</span><span class="st">&quot;before&quot;</span>]</span>
+<span id="cb27-5"><a href="#cb27-5" tabindex="-1"></a></span>
+<span id="cb27-6"><a href="#cb27-6" tabindex="-1"></a>d_PA          <span class="co"># change in control group (PA)</span></span>
+<span id="cb27-7"><a href="#cb27-7" tabindex="-1"></a>d_NJ          <span class="co"># change in treatment group (NJ)</span></span>
+<span id="cb27-8"><a href="#cb27-8" tabindex="-1"></a>d_NJ <span class="sc">-</span> d_PA   <span class="co"># difference-in-differences estimate</span></span></code></pre></div>
 <pre><code>## [1] -2.16
 ## [1] 0.59
 ## [1] 2.75</code></pre>
@@ -1852,38 +1924,38 @@ parallel trends</h2>
 <p>Plotting the group means makes the logic transparent. The DiD effect
 is the gap between New Jersey’s observed point and its counterfactual
 (the Pennsylvania trend applied to New Jersey):</p>
-<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a>t <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)                                   <span class="co"># 0 = before, 1 = after</span></span>
-<span id="cb30-2"><a href="#cb30-2" tabindex="-1"></a>PA <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">23.33</span>, <span class="fl">21.17</span>)                          <span class="co"># control</span></span>
-<span id="cb30-3"><a href="#cb30-3" tabindex="-1"></a>NJ <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">20.44</span>, <span class="fl">21.03</span>)                          <span class="co"># treatment (observed)</span></span>
-<span id="cb30-4"><a href="#cb30-4" tabindex="-1"></a>NJ_cf <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">20.44</span>, <span class="fl">20.44</span> <span class="sc">+</span> (PA[<span class="dv">2</span>]<span class="sc">-</span>PA[<span class="dv">1</span>]))       <span class="co"># counterfactual (parallel to PA)</span></span>
-<span id="cb30-5"><a href="#cb30-5" tabindex="-1"></a></span>
-<span id="cb30-6"><a href="#cb30-6" tabindex="-1"></a><span class="fu">plot</span>(t, NJ, <span class="at">type=</span><span class="st">&quot;b&quot;</span>, <span class="at">pch=</span><span class="dv">19</span>, <span class="at">col=</span><span class="st">&quot;red&quot;</span>, <span class="at">ylim=</span><span class="fu">c</span>(<span class="dv">18</span>,<span class="dv">24</span>),</span>
-<span id="cb30-7"><a href="#cb30-7" tabindex="-1"></a>     <span class="at">xaxt=</span><span class="st">&quot;n&quot;</span>, <span class="at">xlab=</span><span class="st">&quot;&quot;</span>, <span class="at">ylab=</span><span class="st">&quot;FTE employment&quot;</span>,</span>
-<span id="cb30-8"><a href="#cb30-8" tabindex="-1"></a>     <span class="at">main=</span><span class="st">&quot;Card-Krueger: DiD&quot;</span>)</span>
-<span id="cb30-9"><a href="#cb30-9" tabindex="-1"></a><span class="fu">axis</span>(<span class="dv">1</span>, <span class="at">at=</span>t, <span class="at">labels=</span><span class="fu">c</span>(<span class="st">&quot;Before&quot;</span>, <span class="st">&quot;After&quot;</span>))</span>
-<span id="cb30-10"><a href="#cb30-10" tabindex="-1"></a><span class="fu">lines</span>(t, PA, <span class="at">type=</span><span class="st">&quot;b&quot;</span>, <span class="at">pch=</span><span class="dv">19</span>, <span class="at">col=</span><span class="st">&quot;blue&quot;</span>)</span>
-<span id="cb30-11"><a href="#cb30-11" tabindex="-1"></a><span class="fu">lines</span>(t, NJ_cf, <span class="at">type=</span><span class="st">&quot;b&quot;</span>, <span class="at">pch=</span><span class="dv">1</span>, <span class="at">lty=</span><span class="dv">2</span>, <span class="at">col=</span><span class="st">&quot;red&quot;</span>)</span>
-<span id="cb30-12"><a href="#cb30-12" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">&quot;bottomleft&quot;</span>, <span class="at">bty=</span><span class="st">&quot;n&quot;</span>,</span>
-<span id="cb30-13"><a href="#cb30-13" tabindex="-1"></a>       <span class="at">legend=</span><span class="fu">c</span>(<span class="st">&quot;NJ (treatment)&quot;</span>, <span class="st">&quot;PA (control)&quot;</span>, <span class="st">&quot;NJ counterfactual&quot;</span>),</span>
-<span id="cb30-14"><a href="#cb30-14" tabindex="-1"></a>       <span class="at">col=</span><span class="fu">c</span>(<span class="st">&quot;red&quot;</span>,<span class="st">&quot;blue&quot;</span>,<span class="st">&quot;red&quot;</span>), <span class="at">pch=</span><span class="fu">c</span>(<span class="dv">19</span>,<span class="dv">19</span>,<span class="dv">1</span>), <span class="at">lty=</span><span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">1</span>,<span class="dv">2</span>))</span></code></pre></div>
+<div class="sourceCode" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a>t <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)                                   <span class="co"># 0 = before, 1 = after</span></span>
+<span id="cb29-2"><a href="#cb29-2" tabindex="-1"></a>PA <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">23.33</span>, <span class="fl">21.17</span>)                          <span class="co"># control</span></span>
+<span id="cb29-3"><a href="#cb29-3" tabindex="-1"></a>NJ <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">20.44</span>, <span class="fl">21.03</span>)                          <span class="co"># treatment (observed)</span></span>
+<span id="cb29-4"><a href="#cb29-4" tabindex="-1"></a>NJ_cf <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">20.44</span>, <span class="fl">20.44</span> <span class="sc">+</span> (PA[<span class="dv">2</span>]<span class="sc">-</span>PA[<span class="dv">1</span>]))       <span class="co"># counterfactual (parallel to PA)</span></span>
+<span id="cb29-5"><a href="#cb29-5" tabindex="-1"></a></span>
+<span id="cb29-6"><a href="#cb29-6" tabindex="-1"></a><span class="fu">plot</span>(t, NJ, <span class="at">type=</span><span class="st">&quot;b&quot;</span>, <span class="at">pch=</span><span class="dv">19</span>, <span class="at">col=</span><span class="st">&quot;red&quot;</span>, <span class="at">ylim=</span><span class="fu">c</span>(<span class="dv">18</span>,<span class="dv">24</span>),</span>
+<span id="cb29-7"><a href="#cb29-7" tabindex="-1"></a>     <span class="at">xaxt=</span><span class="st">&quot;n&quot;</span>, <span class="at">xlab=</span><span class="st">&quot;&quot;</span>, <span class="at">ylab=</span><span class="st">&quot;FTE employment&quot;</span>,</span>
+<span id="cb29-8"><a href="#cb29-8" tabindex="-1"></a>     <span class="at">main=</span><span class="st">&quot;Card-Krueger: DiD&quot;</span>)</span>
+<span id="cb29-9"><a href="#cb29-9" tabindex="-1"></a><span class="fu">axis</span>(<span class="dv">1</span>, <span class="at">at=</span>t, <span class="at">labels=</span><span class="fu">c</span>(<span class="st">&quot;Before&quot;</span>, <span class="st">&quot;After&quot;</span>))</span>
+<span id="cb29-10"><a href="#cb29-10" tabindex="-1"></a><span class="fu">lines</span>(t, PA, <span class="at">type=</span><span class="st">&quot;b&quot;</span>, <span class="at">pch=</span><span class="dv">19</span>, <span class="at">col=</span><span class="st">&quot;blue&quot;</span>)</span>
+<span id="cb29-11"><a href="#cb29-11" tabindex="-1"></a><span class="fu">lines</span>(t, NJ_cf, <span class="at">type=</span><span class="st">&quot;b&quot;</span>, <span class="at">pch=</span><span class="dv">1</span>, <span class="at">lty=</span><span class="dv">2</span>, <span class="at">col=</span><span class="st">&quot;red&quot;</span>)</span>
+<span id="cb29-12"><a href="#cb29-12" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">&quot;bottomleft&quot;</span>, <span class="at">bty=</span><span class="st">&quot;n&quot;</span>,</span>
+<span id="cb29-13"><a href="#cb29-13" tabindex="-1"></a>       <span class="at">legend=</span><span class="fu">c</span>(<span class="st">&quot;NJ (treatment)&quot;</span>, <span class="st">&quot;PA (control)&quot;</span>, <span class="st">&quot;NJ counterfactual&quot;</span>),</span>
+<span id="cb29-14"><a href="#cb29-14" tabindex="-1"></a>       <span class="at">col=</span><span class="fu">c</span>(<span class="st">&quot;red&quot;</span>,<span class="st">&quot;blue&quot;</span>,<span class="st">&quot;red&quot;</span>), <span class="at">pch=</span><span class="fu">c</span>(<span class="dv">19</span>,<span class="dv">19</span>,<span class="dv">1</span>), <span class="at">lty=</span><span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">1</span>,<span class="dv">2</span>))</span></code></pre></div>
 <p><img src="data:image/png;base64,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" /><!-- --></p>
 </div>
 <div id="exercises" class="section level2" number="2.4">
 <h2><span class="header-section-number">2.4</span> Exercises</h2>
 <ol style="list-style-type: decimal">
-<li>In the <code>wagepan</code> example, add <code>exper</code> and
-<code>expersq</code> to the FE model. Why does <code>exper</code> cause
-a problem once year dummies are included?</li>
-<li>Re-estimate the <code>kielmc</code> DiD using
-<code>log(rprice)</code> instead of <code>rprice</code>. How does the
-interpretation of the interaction coefficient change?</li>
+<li>In the <code>wagepan</code> example, try to add <code>exper</code>
+back to the FE model on its own. Why does experience cause a problem
+once the year dummies are included?</li>
+<li>Re-estimate Example 13.4 using <code>log(rprice)</code> (the
+<em>real</em> price) instead of <code>lprice</code>. Does the
+interaction coefficient change much? Why or why not?</li>
 <li>Using <code>crime2</code>, look at <code>?crime2</code> and add
 another differenced control (a variable starting with <code>c</code>,
 e.g. the change in police per capita) to the first-differenced model.
 Does the change in unemployment remain significant?</li>
 <li>For the Card–Krueger numbers, set up a small “long” data frame with
 a treatment dummy, a post dummy, and their interaction, and recover the
-DiD estimate from an OLS regression.</li>
+DiD estimate (+2.75) from an OLS regression.</li>
 </ol>
 </div>
 </div>

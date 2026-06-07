@@ -1,16 +1,16 @@
 ---
 title: "Lab 10: Panel Data, Causal Inference and Difference-in-Differences"
 subtitle: "Econometrics II - YTU"
-author: 
+author:
   name: "Prof. Dr. Hüseyin Taştan"
   affiliation: "Yıldız Technical University"
 # date: "`r format(Sys.time(), '%d %B %Y')`"
 date: 2021 Spring
-output: 
+output:
   html_document:
     number_sections: true
     theme: lumen
-    highlight: haddock 
+    highlight: haddock
     # code_folding: show
     toc: yes
     toc_depth: 3
@@ -18,7 +18,7 @@ output:
     keep_md: true
 ---
 
-<style type="text/css"> 
+<style type="text/css">
 body{
   background-color: #FAFAFA;
   font-size: 18px;
@@ -35,7 +35,9 @@ knitr::opts_chunk$set(echo = TRUE, results = 'asis', fig.show = 'asis')
 ```
 
 In this lab we use the `wooldridge` package (which ships the textbook data sets) and
-the `plm` package for panel-data estimation. Install them once if needed:
+the `plm` package for panel-data estimation. The empirical examples reproduce
+Wooldridge's *Introductory Econometrics* (Examples 14.4, 13.9, 13.3 and 13.4).
+Install the packages once if needed:
 
 ```{r, eval=FALSE}
 install.packages(c("wooldridge", "plm", "lmtest", "sandwich", "stargazer"))
@@ -51,11 +53,13 @@ library(stargazer)
 
 # Part I: Panel Data
 
-## Pooled OLS, Fixed Effects, and Random Effects
+## Pooled OLS, Fixed Effects, and Random Effects (Wooldridge, Example 14.4)
 
 We use the `wagepan` data set: a balanced panel of 545 men observed over
 1980--1987 (`nr` = person id, `year` = time). The outcome is the log hourly
-wage (`lwage`).
+wage (`lwage`). This reproduces Wooldridge's **Example 14.4**, a log wage
+equation with education, race, labor-market experience, marital and union
+status, and a full set of year dummies (`d81`--`d87`).
 
 ```{r, echo=TRUE, results="hold"}
 data("wagepan")
@@ -64,31 +68,21 @@ pdat <- pdata.frame(wagepan, index = c("nr", "year"))
 pdim(pdat)
 ```
 
-We estimate the effect of being in a union (`union`) and being married
-(`married`) on log wages, controlling for year effects.
-
-**Pooled OLS** ignores the panel structure (treats every observation as
-independent):
+We estimate the same specification three ways. Define the formula once:
 
 ```{r, echo=TRUE, results="hold"}
-pooled <- plm(lwage ~ married + union + factor(year),
-              data = pdat, model = "pooling")
+f <- lwage ~ educ + black + hisp + exper + expersq + married + union +
+     d81 + d82 + d83 + d84 + d85 + d86 + d87
 ```
 
-**Random effects (RE)** assumes the unobserved effect $a_i$ is uncorrelated
-with the regressors:
+* **Pooled OLS** ignores the panel structure (treats every observation as independent).
+* **Random effects (RE)** keeps the unobserved effect $a_i$ but assumes it is *uncorrelated* with the regressors.
+* **Fixed effects (FE, within)** allows $a_i$ to be correlated with the regressors by demeaning within each person.
 
 ```{r, echo=TRUE, results="hold"}
-re <- plm(lwage ~ married + union + factor(year),
-          data = pdat, model = "random")
-```
-
-**Fixed effects (FE, within)** allows $a_i$ to be correlated with the
-regressors by demeaning within each person:
-
-```{r, echo=TRUE, results="hold"}
-fe <- plm(lwage ~ married + union + factor(year),
-          data = pdat, model = "within")
+pooled <- plm(f, data = pdat, model = "pooling")
+re     <- plm(f, data = pdat, model = "random")
+fe     <- plm(f, data = pdat, model = "within")
 ```
 
 Compare the three estimators side by side:
@@ -96,25 +90,33 @@ Compare the three estimators side by side:
 ```{r, echo=TRUE, results="hold"}
 stargazer(pooled, re, fe, type = "text",
           column.labels = c("Pooled", "RE", "FE"),
-          keep = c("married", "union"),
+          keep = c("educ", "black", "hisp", "exper", "expersq", "married", "union"),
           keep.stat = c("n", "rsq"))
 ```
 
-The union and marriage premia shrink as we move from pooled OLS to FE. Part of
-the cross-sectional "premium" reflects time-invariant characteristics of the
-men (e.g. ability, stable job attachment) that FE differences away.
+Reading the table (these match Wooldridge's Table 14.4):
+
+* The return to education is about **9.1%** per year in pooled OLS and RE, but it **cannot be estimated** under FE -- `educ` is constant over time for each man, so it is absorbed by the individual effect $a_i$. The same happens to `black` and `hisp`.
+* The **marriage premium** falls from **0.108** (pooled) to **0.064** (RE) to **0.047** (FE).
+* The **union premium** falls from **0.182** (pooled) to **0.106** (RE) to **0.080** (FE).
+
+The cross-sectional (pooled) premia overstate the causal effect: married/union
+men differ in stable, unobserved ways (e.g. ability, job attachment) that are
+correlated with wages. FE differences those traits away, leaving a smaller --
+and more credible -- estimate.
 
 ## Time-invariant regressors drop out under FE
 
-Education (`educ`) does not change over the sample for these men. If we add it
-to the FE model it is perfectly absorbed by the individual effect $a_i$ and
-cannot be estimated:
+Education does not change over the sample for these men, so under FE it is
+perfectly absorbed by the individual effect $a_i$ and is not estimable:
 
 ```{r, echo=TRUE, results="hold"}
-fe2 <- plm(lwage ~ educ + married + union + factor(year),
-           data = pdat, model = "within")
-coef(fe2)["educ"]   # NA: educ is time-invariant and is differenced away
+coef(fe)["educ"]   # NA: educ is time-invariant and is differenced away
 ```
+
+(Note that `exper` is also dropped from the FE model: since experience increases
+by exactly one each year for everyone, its within-person variation is collinear
+with the year dummies.)
 
 ## Hausman test: FE vs RE
 
@@ -126,8 +128,9 @@ under $H_1$ only FE is consistent.
 phtest(fe, re)
 ```
 
-A small p-value rejects $H_0$, favoring the **fixed effects** estimator: the
-unobserved individual effect is correlated with union/marriage status.
+The test statistic is about $\chi^2 = 31.7$ ($p \approx 0.0004$), so we **reject**
+$H_0$: the unobserved individual effect is correlated with the regressors and the
+**fixed effects** estimator is preferred over random effects.
 
 ## Clustered standard errors
 
@@ -138,71 +141,86 @@ cluster standard errors at the individual level:
 coeftest(fe, vcov = vcovHC(fe, type = "sss", cluster = "group"))
 ```
 
-## Two-period first differencing
+## Two-period first differencing (Wooldridge, Example 13.9)
 
 With only two periods, the fixed-effects estimator is identical to first
-differencing. We replicate Wooldridge's Example 13.9 using `crime2`: a panel of
-46 cities observed in 1982 and 1987. The data set already stores the changes
-(`ccrmrte` = $\Delta$ crime rate, `cunem` = $\Delta$ unemployment) on the 1987
-rows. Regressing the change in the crime rate on the change in unemployment
-removes any time-constant city characteristics:
+differencing. We reproduce Wooldridge's **Example 13.9** using `crime2`: 46
+cities observed in 1982 and 1987.
+
+First, a pooled regression in **levels** (with a year dummy `d87`) finds
+essentially no relationship between unemployment and the crime rate:
 
 ```{r, echo=TRUE, results="hold"}
 data("crime2")
+summary(lm(crmrte ~ d87 + unem, data = crime2))
+```
+
+The unemployment coefficient (about 0.43) is small and statistically
+**insignificant** -- an implausible result. Cities with high and low
+unemployment differ in many unobserved, time-constant ways (the omitted city
+effect), which contaminates the levels comparison.
+
+`crime2` already stores the changes on its 1987 rows (`ccrmrte` = $\Delta$ crime
+rate, `cunem` = $\Delta$ unemployment). Regressing the change in the crime rate
+on the change in unemployment removes any time-constant city characteristics:
+
+```{r, echo=TRUE, results="hold"}
 fd <- lm(ccrmrte ~ cunem, data = subset(crime2, year == 87))
 summary(fd)
 ```
 
-Compare this with a (naive) pooled regression of the crime rate on
-unemployment, which ignores city heterogeneity and even gets the sign "wrong":
-
-```{r, echo=TRUE, results="hold"}
-pooled_crime <- lm(crmrte ~ unem, data = crime2)
-coef(summary(pooled_crime))
-```
-
-Once we difference out the fixed city effects, higher unemployment is
-associated with a higher crime rate.
+Now the effect is **positive and significant**: a one-point rise in the
+unemployment rate is associated with about **2.2 more crimes per 1,000 people**
+(the intercept, $\approx 15.4$, captures the secular increase in crime between
+1982 and 1987). Differencing out the time-constant city heterogeneity uncovers
+the relationship that the levels regression missed.
 
 # Part II: Causal Inference & Difference-in-Differences
 
-## Difference-in-Differences: the incinerator example
+## Difference-in-Differences: the incinerator example (Wooldridge, Examples 13.3 & 13.4)
 
-We replicate Wooldridge's Example 13.3 (`kielmc`): did the rumor/construction
-of a garbage incinerator in North Andover, MA lower nearby housing prices?
-We have repeated cross sections of house sales in **1978** (before) and **1981**
-(after).
+Did the rumor and construction of a garbage incinerator in North Andover, MA
+depress nearby house prices? We use repeated cross sections of house sales in
+**1978** (before) and **1981** (after).
 
 * Treatment group: houses **near** the incinerator site (`nearinc = 1`).
 * Control group: houses farther away (`nearinc = 0`).
 * `y81 = 1` for the after period (1981).
 
+The $2\times 2$ table of average **real** prices (1978 dollars):
+
 ```{r, echo=TRUE, results="hold"}
 data("kielmc")
-# group-by-period mean real prices: the 2x2 table
 aggregate(rprice ~ y81 + nearinc, data = kielmc, FUN = mean)
 ```
 
-The DiD estimate is the coefficient on the **interaction** `y81:nearinc`:
+**Example 13.3** -- the simple DiD is the coefficient on the **interaction**
+`y81:nearinc`:
 
 ```{r, echo=TRUE, results="hold"}
 did <- lm(rprice ~ nearinc + y81 + y81:nearinc, data = kielmc)
 summary(did)
 ```
 
-The interaction coefficient is the causal effect of being near the incinerator
-on the house price. Adding controls (so parallel trends needs to hold only
-conditionally) sharpens the estimate:
+The point estimate is about **-\$11,864**: houses near the incinerator lost
+value relative to the control group after 1981. On its own, however, the
+estimate has a $t$-statistic around $-1.6$ and is **not** statistically
+significant.
+
+**Example 13.4** -- adding house characteristics (so that parallel trends needs
+to hold only *conditionally*) sharpens the estimate. Following the textbook we
+use the log of price:
 
 ```{r, echo=TRUE, results="hold"}
-did_ctrl <- lm(log(rprice) ~ nearinc + y81 + y81:nearinc +
-                 age + I(age^2) + log(intst) + log(land) + log(area) +
+did_ctrl <- lm(lprice ~ nearinc + y81 + y81:nearinc +
+                 age + agesq + log(intst) + log(land) + log(area) +
                  rooms + baths, data = kielmc)
 coeftest(did_ctrl)["nearinc:y81", ]
 ```
 
-With controls, houses near the incinerator fell roughly 13% in value relative
-to the control group after 1981.
+The interaction is now about **-0.132** and statistically significant: after the
+incinerator, houses near the site fell roughly **13%** in value relative to
+comparable houses farther away.
 
 ## Card and Krueger (1994): minimum wage and employment
 
@@ -263,17 +281,13 @@ legend("bottomleft", bty="n",
 
 ## Exercises
 
-1. In the `wagepan` example, add `exper` and `expersq` to the FE model. Why does
-   `exper` cause a problem once year dummies are included?
-2. Re-estimate the `kielmc` DiD using `log(rprice)` instead of `rprice`. How does
-   the interpretation of the interaction coefficient change?
+1. In the `wagepan` example, try to add `exper` back to the FE model on its own.
+   Why does experience cause a problem once the year dummies are included?
+2. Re-estimate Example 13.4 using `log(rprice)` (the *real* price) instead of
+   `lprice`. Does the interaction coefficient change much? Why or why not?
 3. Using `crime2`, look at `?crime2` and add another differenced control (a
    variable starting with `c`, e.g. the change in police per capita) to the
    first-differenced model. Does the change in unemployment remain significant?
 4. For the Card--Krueger numbers, set up a small "long" data frame with a
    treatment dummy, a post dummy, and their interaction, and recover the DiD
-   estimate from an OLS regression.
-
-```{r, echo=TRUE, results="hold"}
-
-```
+   estimate (+2.75) from an OLS regression.
