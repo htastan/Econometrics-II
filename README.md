@@ -47,12 +47,16 @@ Instructor: Prof. Dr. Hüseyin Taştan
 11. **Forecasting and VAR models**
     * Handout: [pdf](https://raw.githack.com/htastan/Econometrics-II/main/Slide-Handouts/Handout-10-Forecasting-ch-18.pdf)
     * Lab: [R applications](https://raw.githack.com/htastan/Econometrics-II/main/Labs/Lab-09-Forecasting.html)
+
+12. **Panel Data, Causal Inference and Difference-in-Differences**
+    * Handout: [pdf](https://raw.githack.com/htastan/Econometrics-II/main/Slide-Handouts/Handout-11-Panel-Causal-DiD.pdf)
+    * Lab: [R applications](https://raw.githack.com/htastan/Econometrics-II/main/Labs/Lab-10-Panel-Causal-DiD.html)
     
     
     
 ## Scope and Purpose 
 
-This course is the second part of the Econometrics sequence. The purpose of this course is to teach fundamental methods of analysis in econometrics at the introductory level. In the first part, Econometrics I, offered in the Fall semester, we covered the classical linear regression model within the context of cross-sectional data and examined various extensions. Problems and issues arising in the regression analysis using time series data, such as trends, seasonality, non-stationarity, unit roots, etc., were left to the second part of the econometrics sequence. Econometrics II will particularly focus on the regression analysis with time series data. Topics in Econometrics II include the classical linear regression model (CNLRM) using matrix algebra, the properties and the nature of time series data, stationarity and dependency, unit roots and cointegration and forecasting.  
+This course is the second part of the Econometrics sequence. The purpose of this course is to teach fundamental methods of analysis in econometrics at the introductory level. In the first part, Econometrics I, offered in the Fall semester, we covered the classical linear regression model within the context of cross-sectional data and examined various extensions. Problems and issues arising in the regression analysis using time series data, such as trends, seasonality, non-stationarity, unit roots, etc., were left to the second part of the econometrics sequence. Econometrics II will particularly focus on the regression analysis with time series data. Topics in Econometrics II include the classical linear regression model (CNLRM) using matrix algebra, the properties and the nature of time series data, stationarity and dependency, unit roots and cointegration, forecasting, as well as an introduction to panel data and causal inference (difference-in-differences).  
 
 **Econometrics software**: We will use `R` in class and in lab sessions. `R` is an open-source software for statistical computing and graphics which is widely used by statisticians, researchers, data scientists and econometricians as well as industry professionals. The latest version of `R` can be downloaded from: 
 [https://www.r-project.org/](https://www.r-project.org/) 
